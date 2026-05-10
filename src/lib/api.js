@@ -1,5 +1,11 @@
 import { supabase } from './supabase'
 
+// Convert YYYY-MM → YYYY-MM-01 for date columns in Postgres
+function toDateParam(month) {
+  if (!month) return undefined
+  return month.length === 7 ? `${month}-01` : month
+}
+
 // ── Config / reference data ──────────────────────────────────────────────────
 
 export async function getOrganizations() {
@@ -63,7 +69,7 @@ export async function getAgentScorecard({ agentId, month }) {
     .from('metrics_vw_monthly_scorecard')
     .select('*')
   if (agentId) query = query.eq('agent_id', agentId)
-  if (month) query = query.eq('metric_month', month)
+  if (month) query = query.eq('metric_month', toDateParam(month))
   const { data, error } = await query
   if (error) throw error
   return data
@@ -74,7 +80,7 @@ export async function getAgentMetricDetail({ agentId, month }) {
     .from('metrics_vw_agent_month_detail')
     .select('*')
   if (agentId) query = query.eq('agent_id', agentId)
-  if (month) query = query.eq('metric_month', month)
+  if (month) query = query.eq('metric_month', toDateParam(month))
   const { data, error } = await query
   if (error) throw error
   return data
@@ -84,7 +90,7 @@ export async function getLeaderScorecards({ month, organizationId, externalGroup
   let query = supabase
     .from('metrics_vw_monthly_scorecard')
     .select('*')
-  if (month) query = query.eq('metric_month', month)
+  if (month) query = query.eq('metric_month', toDateParam(month))
   if (organizationId) query = query.eq('organization_id', organizationId)
   if (externalGroupId) query = query.eq('external_group_id', externalGroupId)
   if (agentId) query = query.eq('agent_id', agentId)
@@ -99,7 +105,7 @@ export async function getAttendanceMonthly({ month, organizationId, externalGrou
   let query = supabase
     .from('metrics_vw_attendance_monthly')
     .select('*')
-  if (month) query = query.eq('metric_month', month)
+  if (month) query = query.eq('metric_month', toDateParam(month))
   if (organizationId) query = query.eq('organization_id', organizationId)
   if (externalGroupId) query = query.eq('external_group_id', externalGroupId)
   const { data, error } = await query
@@ -111,7 +117,7 @@ export async function getAttendanceDaily({ month, agentId, externalGroupId }) {
   let query = supabase
     .from('metrics_vw_attendance_daily')
     .select('*')
-  if (month) query = query.eq('attendance_month', month)
+  if (month) query = query.eq('attendance_month', toDateParam(month))
   if (agentId) query = query.eq('agent_id', agentId)
   if (externalGroupId) query = query.eq('external_group_id', externalGroupId)
   const { data, error } = await query
@@ -144,7 +150,7 @@ export async function getAgentMonthNote({ agentId, noteMonth }) {
     .from('metrics_agent_month_notes')
     .select('*')
     .eq('agent_id', agentId)
-    .eq('note_month', noteMonth)
+    .eq('note_month', toDateParam(noteMonth))
     .maybeSingle()
   if (error) throw error
   return data
@@ -154,7 +160,7 @@ export async function upsertAgentMonthNote({ agentId, noteMonth, noteText, creat
   const { data, error } = await supabase
     .from('metrics_agent_month_notes')
     .upsert(
-      { agent_id: agentId, note_month: noteMonth, note_text: noteText, created_by: createdBy },
+      { agent_id: agentId, note_month: toDateParam(noteMonth), note_text: noteText, created_by: createdBy },
       { onConflict: 'agent_id,note_month' }
     )
     .select()
