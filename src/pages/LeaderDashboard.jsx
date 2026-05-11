@@ -143,33 +143,32 @@ export default function TeamDashboard() {
       .catch((e) => setError(e.message))
   }, [orgId, groupId])
 
-  // Load monthly data when group/month/org changes
+  // Derived agent IDs — stable reference changes only when agents array changes
+  const agentIds = useMemo(() => agents.map((a) => a.id), [agents])
+
+  // Load monthly data when agents or month changes
   useEffect(() => {
-    if (!groupId || !month) return
+    if (!agentIds.length || !month) { setScorecards([]); setMonthDetail([]); return }
     setLoading(true)
     setError('')
     Promise.all([
-      getLeaderScorecards({ month, externalGroupId: Number(groupId), organizationId: orgId ? Number(orgId) : undefined }),
-      getGroupMonthDetail({ month, externalGroupId: Number(groupId), organizationId: orgId ? Number(orgId) : undefined }),
+      getLeaderScorecards({ month, externalGroupId: groupId ? Number(groupId) : undefined }),
+      getGroupMonthDetail({ month, agentIds }),
     ])
       .then(([sc, det]) => { setScorecards(sc); setMonthDetail(det) })
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false))
-  }, [groupId, month, orgId])
+  }, [agentIds, month])
 
-  // Load year data when group/year/org changes
+  // Load year data when agents or rollup year changes
   useEffect(() => {
-    if (!groupId || !rollupYear) return
+    if (!agentIds.length || !rollupYear) { setYearDetail([]); return }
     setYearLoading(true)
-    getGroupYearDetail({
-      year: rollupYear,
-      externalGroupId: Number(groupId),
-      organizationId: orgId ? Number(orgId) : undefined,
-    })
+    getGroupYearDetail({ year: rollupYear, agentIds })
       .then(setYearDetail)
       .catch((e) => setError(e.message))
       .finally(() => setYearLoading(false))
-  }, [groupId, rollupYear, orgId])
+  }, [agentIds, rollupYear])
 
   // ── Derived data ────────────────────────────────────────────────────────────
 

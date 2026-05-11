@@ -115,29 +115,28 @@ export async function getAgentYearDetail({ agentId, year }) {
   return data
 }
 
-// All metric rows for a group in a given month (all agents, all metrics)
-export async function getGroupMonthDetail({ month, externalGroupId, organizationId }) {
-  let query = supabase
+// All metric rows for a list of agents in a given month.
+// Uses agent_id IN (...) — efficient via the same index path as single-agent queries.
+export async function getGroupMonthDetail({ month, agentIds }) {
+  if (!agentIds?.length) return []
+  const { data, error } = await supabase
     .from('metrics_vw_agent_month_detail')
     .select('*')
-  if (month) query = query.eq('metric_month', toDateParam(month))
-  if (externalGroupId) query = query.eq('external_group_id', externalGroupId)
-  if (organizationId) query = query.eq('organization_id', organizationId)
-  const { data, error } = await query
+    .in('agent_id', agentIds)
+    .eq('metric_month', toDateParam(month))
   if (error) throw error
   return data
 }
 
-// All metric rows for a group across a full calendar year (for rollups)
-export async function getGroupYearDetail({ year, externalGroupId, organizationId }) {
-  let query = supabase
+// All metric rows for a list of agents across a full calendar year (for rollups).
+export async function getGroupYearDetail({ year, agentIds }) {
+  if (!agentIds?.length) return []
+  const { data, error } = await supabase
     .from('metrics_vw_agent_month_detail')
     .select('*')
+    .in('agent_id', agentIds)
     .gte('metric_month', `${year}-01-01`)
     .lte('metric_month', `${year}-12-31`)
-  if (externalGroupId) query = query.eq('external_group_id', externalGroupId)
-  if (organizationId) query = query.eq('organization_id', organizationId)
-  const { data, error } = await query
   if (error) throw error
   return data
 }
