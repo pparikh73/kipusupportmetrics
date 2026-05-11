@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useMemo, useCallback } from 'react'
 import {
   getOrganizations, getGroups, getAgents,
   getAttendanceCodes, getAttendanceDaily,
@@ -7,15 +7,14 @@ import {
 import { currentMonth, recentMonths } from '../lib/format'
 import Modal from '../components/Modal'
 
-function getWeekdays(yearMonth) {
+// ── Date helpers ──────────────────────────────────────────────────────────────
+
+function getAllDays(yearMonth) {
   const [year, month] = yearMonth.split('-').map(Number)
   const days = []
   const d = new Date(year, month - 1, 1)
   while (d.getMonth() === month - 1) {
-    const dow = d.getDay()
-    if (dow !== 0 && dow !== 6) {
-      days.push(new Date(d))
-    }
+    days.push(new Date(d))
     d.setDate(d.getDate() + 1)
   }
   return days
@@ -25,28 +24,134 @@ function toIso(d) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
 
-const DAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri']
+function isWeekend(d) { return d.getDay() === 0 || d.getDay() === 6 }
+
+const DOW = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa']
+
+// ── US Holiday calculator ─────────────────────────────────────────────────────
+
+function nthWeekday(year, month, weekday, n) {
+  const d = new Date(year, month - 1, 1)
+  let count = 0
+  while (d.getMonth() === month - 1) {
+    if (d.getDay() === weekday && ++count === n) return new Date(d)
+    d.setDate(d.getDate() + 1)
+  }
+  return null
+}
+
+function lastWeekday(year, month, weekday) {
+  const d = new Date(year, month, 0)
+  while (d.getDay() !== weekday) d.setDate(d.getDate() - 1)
+  return new Date(d)
+}
+
+function getUSHolidays(year, targetMonth) {
+  const candidates = [
+    { name: "New Year's Day",              date: new Date(year, 0, 1) },
+    { name: 'Martin Luther King Jr. Day',  date: nthWeekday(year, 1, 1, 3) },
+    { name: "Presidents' Day",             date: nthWeekday(year, 2, 1, 3) },
+    { name: 'Memorial Day',                date: lastWeekday(year, 5, 1) },
+    { name: 'Juneteenth',                  date: new Date(year, 5, 19) },
+    { name: 'Independence Day',            date: new Date(year, 6, 4) },
+    { name: 'Labor Day',                   date: nthWeekday(year, 9, 1, 1) },
+    { name: 'Veterans Day',                date: new Date(year, 10, 11) },
+    { name: 'Thanksgiving Day',            date: nthWeekday(year, 11, 4, 4) },
+    { name: 'Day after Thanksgiving',      date: (() => { const t = nthWeekday(year, 11, 4, 4); if (!t) return null; const d = new Date(t); d.setDate(d.getDate() + 1); return d })() },
+    { name: 'Christmas Day',               date: new Date(year, 11, 25) },
+  ]
+  return candidates
+    .filter((h) => h.date && h.date.getMonth() + 1 === targetMonth)
+    .map((h) => ({ name: h.name, iso: toIso(h.date), date: h.date }))
+    .sort((a, b) => a.date - b.date)
+}
+
+// ── Cell styling ──────────────────────────────────────────────────────────────
+
+function cellBg(day, iso, cell, holidayIsos) {
+  const weekend = isWeekend(day)
+  const holiday = holidayIsos.has(iso)
+  if (cell) {
+    if (cell.counts_as_available) return weekend ? '#bbf7d0' : '#dcfce7'      // green — present
+    if (cell.counts_as_scheduled) return '#fef9c3'                             // yellow — absent/pto
+    return '#ede9fe'                                                           // lavender — off/holiday
+  }
+  if (holiday) return '#dbeafe'   // light blue — holiday column, no code
+  if (weekend) return '#f3f4f6'   // gray — weekend
+  return '#fff'
+}
+
+function colHeaderBg(day, iso, holidayIsos) {
+  if (holidayIsos.has(iso)) return '#bfdbfe'
+  if (isWeekend(day)) return '#e5e7eb'
+  return '#f8f9fb'
+}
+
+// ── Main page ─────────────────────────────────────────────────────────────────
 
 export default function AttendanceEntry() {
   const months = recentMonths(18)
-  const [orgs, setOrgs] = useState([])
+
+  const [orgs, setOrgs]     = useState([])
   const [groups, setGroups] = useState([])
   const [agents, setAgents] = useState([])
-  const [codes, setCodes] = useState([])
+  const [codes, setCodes]   = useState([])
 
-  const [orgId, setOrgId] = useState('')
+  const [month, setMonth]   = useState(currentMonth())
+  const [orgId, setOrgId]   = useState('')
   const [groupId, setGroupId] = useState('')
-  const [month, setMonth] = useState(currentMonth())
 
-  // Map: "agentId:dateISO" -> row data from view
-  const [attMap, setAttMap] = useState({})
+  const [savedMap, setSavedMap]     = useState({})  // agentId:dateISO → db row
+  const [pendingMap, setPendingMap] = useState({})  // agentId:dateISO → { codeId, notes } | null
+
   const [loading, setLoading] = useState(false)
-  const [saving, setSaving] = useState(false)
-  const [error, setError] = useState('')
+  const [saving, setSaving]   = useState(false)
+  const [error, setError]     = useState('')
   const [saveMsg, setSaveMsg] = useState('')
 
-  // Modal state for cell editing
-  const [editCell, setEditCell] = useState(null) // { agentId, date, dateISO, agent }
+  // Multi-select
+  const [selectedAgentIds, setSelectedAgentIds] = useState(new Set())
+  const [selectedDates, setSelectedDates]       = useState(new Set())
+  const [bulkCodeId, setBulkCodeId]             = useState('')
+
+  // Holiday panel
+  const [showHolidays, setShowHolidays]       = useState(false)
+  const [overwriteExisting, setOverwriteExisting] = useState(false)
+
+  // Single-cell modal
+  const [editCell, setEditCell] = useState(null)
+
+  // ── Derived constants ───────────────────────────────────────────────────────
+
+  const [yearNum, monthNum] = month.split('-').map(Number)
+  const allDays    = useMemo(() => getAllDays(month), [month])
+  const holidays   = useMemo(() => getUSHolidays(yearNum, monthNum), [yearNum, monthNum])
+  const holidayIsos = useMemo(() => new Set(holidays.map((h) => h.iso)), [holidays])
+
+  const codesById = useMemo(() => {
+    const m = {}; codes.forEach((c) => { m[c.id] = c }); return m
+  }, [codes])
+
+  const codeByCode = useMemo(() => {
+    const m = {}; codes.forEach((c) => { m[c.code] = c }); return m
+  }, [codes])
+
+  // Effective map: pending overrides saved; null pending = deleted
+  const effectiveMap = useMemo(() => {
+    const m = { ...savedMap }
+    Object.entries(pendingMap).forEach(([key, val]) => {
+      if (val === null) { delete m[key] }
+      else {
+        const code = codesById[val.codeId]
+        if (code) m[key] = { ...code, notes: val.notes, isPending: true }
+      }
+    })
+    return m
+  }, [savedMap, pendingMap, codesById])
+
+  const pendingCount = Object.keys(pendingMap).length
+
+  // ── Data loading ────────────────────────────────────────────────────────────
 
   useEffect(() => {
     getOrganizations().then(setOrgs).catch((e) => setError(e.message))
@@ -55,7 +160,9 @@ export default function AttendanceEntry() {
   }, [])
 
   useEffect(() => {
-    getAgents(orgId || undefined, groupId || undefined, { assignedOnly: false }).then(setAgents).catch((e) => setError(e.message))
+    getAgents(orgId || undefined, groupId || undefined, { assignedOnly: true })
+      .then(setAgents)
+      .catch((e) => setError(e.message))
   }, [orgId, groupId])
 
   const loadAttendance = useCallback(async () => {
@@ -63,15 +170,11 @@ export default function AttendanceEntry() {
     setLoading(true)
     setError('')
     try {
-      const data = await getAttendanceDaily({
-        month,
-        externalGroupId: groupId || undefined,
-      })
+      const data = await getAttendanceDaily({ month, externalGroupId: groupId || undefined })
       const map = {}
-      data.forEach((row) => {
-        map[`${row.agent_id}:${row.attendance_date}`] = row
-      })
-      setAttMap(map)
+      data.forEach((row) => { map[`${row.agent_id}:${row.attendance_date}`] = row })
+      setSavedMap(map)
+      setPendingMap({})
     } catch (e) {
       setError(e.message)
     } finally {
@@ -81,60 +184,168 @@ export default function AttendanceEntry() {
 
   useEffect(() => { loadAttendance() }, [loadAttendance])
 
-  const weekdays = getWeekdays(month)
+  // Clear selections when month changes
+  useEffect(() => {
+    setSelectedAgentIds(new Set())
+    setSelectedDates(new Set())
+  }, [month])
 
-  const handleCellClick = (agent, day) => {
-    setEditCell({ agentId: agent.id, date: day, dateISO: toIso(day), agent })
+  // ── Attendance % ────────────────────────────────────────────────────────────
+
+  function calcPct(agentId) {
+    let avail = 0, sched = 0
+    allDays.forEach((d) => {
+      const cell = effectiveMap[`${agentId}:${toIso(d)}`]
+      if (!cell) return
+      if (cell.counts_as_scheduled) sched++
+      if (cell.counts_as_available) avail++
+    })
+    if (sched === 0) return null
+    return (avail / sched * 100).toFixed(1)
   }
 
-  const handleSaveCell = async (codeId, notes) => {
-    if (!editCell) return
+  // ── Bulk actions ────────────────────────────────────────────────────────────
+
+  function fillWeekdays() {
+    const pCode = codeByCode['P']
+    if (!pCode) { setError("No 'P' attendance code found — add a code with code='P' in Attendance Codes."); return }
+    const next = { ...pendingMap }
+    agents.forEach((agent) => {
+      allDays.forEach((d) => {
+        if (isWeekend(d)) return
+        const iso = toIso(d)
+        const key = `${agent.id}:${iso}`
+        if (key in pendingMap || savedMap[key]) return  // don't overwrite
+        next[key] = { codeId: pCode.id, notes: '' }
+      })
+    })
+    setPendingMap(next)
+  }
+
+  function applyHoliday(dateISO, agentList) {
+    const hCode = codeByCode['H'] || codeByCode['HOL']
+    if (!hCode) { setError("No holiday code (H or HOL) found — add one in Attendance Codes."); return }
+    const next = { ...pendingMap }
+    agentList.forEach((agent) => {
+      const key = `${agent.id}:${dateISO}`
+      const hasData = savedMap[key] || (key in pendingMap && pendingMap[key] !== null)
+      if (!overwriteExisting && hasData) return
+      next[key] = { codeId: hCode.id, notes: '' }
+    })
+    setPendingMap(next)
+  }
+
+  function bulkApply() {
+    if (!bulkCodeId || !selectedAgentIds.size || !selectedDates.size) return
+    const next = { ...pendingMap }
+    selectedAgentIds.forEach((agentId) => {
+      selectedDates.forEach((dateISO) => {
+        next[`${agentId}:${dateISO}`] = { codeId: Number(bulkCodeId), notes: '' }
+      })
+    })
+    setPendingMap(next)
+  }
+
+  // Single cell pending update (from modal)
+  function applyCell(agentId, dateISO, codeId, notes) {
+    const key = `${agentId}:${dateISO}`
+    const next = { ...pendingMap }
+    if (codeId === null) {
+      savedMap[key] ? (next[key] = null) : (delete next[key])
+    } else {
+      next[key] = { codeId, notes: notes || '' }
+    }
+    setPendingMap(next)
+    setEditCell(null)
+  }
+
+  // ── Save / Clear ────────────────────────────────────────────────────────────
+
+  async function saveAll() {
+    if (!pendingCount) return
     setSaving(true)
     setError('')
     try {
-      const agent = editCell.agent
-      if (codeId === null) {
-        // Delete
-        await deleteAttendance({ attendanceDate: editCell.dateISO, agentId: editCell.agentId })
-        const newMap = { ...attMap }
-        delete newMap[`${editCell.agentId}:${editCell.dateISO}`]
-        setAttMap(newMap)
-      } else {
-        const row = {
-          attendance_date: editCell.dateISO,
-          agent_id: editCell.agentId,
-          organization_id: agent.organization_id,
-          external_group_id: agent.external_group_id,
-          attendance_code_id: codeId,
-          source: 'manual',
-          notes: notes || null,
+      const toUpsert = []
+      const toDelete = []
+      Object.entries(pendingMap).forEach(([key, val]) => {
+        const [agentIdStr, dateISO] = key.split(':')
+        const agentId = Number(agentIdStr)
+        const agent = agents.find((a) => a.id === agentId)
+        if (val === null) {
+          toDelete.push({ attendanceDate: dateISO, agentId })
+        } else {
+          toUpsert.push({
+            attendance_date: dateISO,
+            agent_id: agentId,
+            organization_id: agent?.organization_id ?? null,
+            external_group_id: agent?.external_group_id ?? null,
+            attendance_code_id: val.codeId,
+            source: 'manual',
+            notes: val.notes || null,
+          })
         }
-        const saved = await upsertAttendance([row])
-        // Re-fetch to get view data (code_name etc.)
-        await loadAttendance()
-      }
-      setSaveMsg('Saved.')
-      setTimeout(() => setSaveMsg(''), 3000)
+      })
+      await Promise.all([
+        ...toDelete.map(({ attendanceDate, agentId }) => deleteAttendance({ attendanceDate, agentId })),
+        ...(toUpsert.length ? [upsertAttendance(toUpsert)] : []),
+      ])
+      setSaveMsg(`Saved ${pendingCount} change${pendingCount !== 1 ? 's' : ''}.`)
+      setTimeout(() => setSaveMsg(''), 4000)
+      await loadAttendance()
     } catch (e) {
       setError(e.message)
     } finally {
       setSaving(false)
-      setEditCell(null)
     }
   }
 
-  const currentRow = editCell ? attMap[`${editCell.agentId}:${editCell.dateISO}`] : null
+  // ── Selection helpers ───────────────────────────────────────────────────────
+
+  function toggleAgent(agentId) {
+    setSelectedAgentIds((prev) => {
+      const next = new Set(prev)
+      next.has(agentId) ? next.delete(agentId) : next.add(agentId)
+      return next
+    })
+  }
+
+  function toggleDate(iso) {
+    setSelectedDates((prev) => {
+      const next = new Set(prev)
+      next.has(iso) ? next.delete(iso) : next.add(iso)
+      return next
+    })
+  }
+
+  function toggleAllAgents() {
+    if (selectedAgentIds.size === agents.length) {
+      setSelectedAgentIds(new Set())
+    } else {
+      setSelectedAgentIds(new Set(agents.map((a) => a.id)))
+    }
+  }
+
+  // ── Render ──────────────────────────────────────────────────────────────────
+
+  const editCellCurrent = editCell
+    ? effectiveMap[`${editCell.agentId}:${editCell.dateISO}`] ?? null
+    : null
+
+  const selectedAgentsArray = agents.filter((a) => selectedAgentIds.has(a.id))
+  const hasSelections = selectedAgentIds.size > 0 && selectedDates.size > 0
 
   return (
     <div className="page">
       <div className="page-header">
         <h1 className="page-title">Attendance Entry</h1>
-        <p className="page-subtitle">Enter daily attendance for agents</p>
+        <p className="page-subtitle">Monthly worksheet — fill weekdays then edit exceptions</p>
       </div>
 
-      {error && <div className="error-msg">{error}</div>}
+      {error   && <div className="error-msg">{error}</div>}
       {saveMsg && <div className="success-msg">{saveMsg}</div>}
 
+      {/* Filter bar */}
       <div className="filter-bar">
         <div className="filter-group">
           <label className="filter-label">Month</label>
@@ -158,64 +369,249 @@ export default function AttendanceEntry() {
         </div>
       </div>
 
+      {/* Action bar */}
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 12, alignItems: 'center' }}>
+        <button className="btn btn-secondary" onClick={fillWeekdays} disabled={loading || saving}>
+          Fill Blank Weekdays as Present
+        </button>
+        <button
+          className="btn btn-primary"
+          onClick={saveAll}
+          disabled={saving || !pendingCount}
+        >
+          {saving ? 'Saving…' : `Save All Changes${pendingCount ? ` (${pendingCount})` : ''}`}
+        </button>
+        {pendingCount > 0 && (
+          <button className="btn btn-secondary" onClick={() => setPendingMap({})}>
+            Clear Unsaved Changes
+          </button>
+        )}
+        <button
+          className="btn btn-secondary"
+          onClick={() => setShowHolidays((v) => !v)}
+          style={{ marginLeft: 'auto' }}
+        >
+          {showHolidays ? 'Hide Holidays' : 'US Holidays This Month'}
+          {holidays.length > 0 && (
+            <span style={{ marginLeft: 6, background: '#bfdbfe', color: '#1e40af', borderRadius: 10, padding: '1px 7px', fontSize: 11, fontWeight: 700 }}>
+              {holidays.length}
+            </span>
+          )}
+        </button>
+      </div>
+
+      {/* Holiday panel */}
+      {showHolidays && (
+        <HolidayPanel
+          holidays={holidays}
+          agents={agents}
+          selectedAgents={selectedAgentsArray}
+          overwriteExisting={overwriteExisting}
+          setOverwriteExisting={setOverwriteExisting}
+          onApply={applyHoliday}
+        />
+      )}
+
+      {/* Bulk apply panel — shown when agent+date selections exist */}
+      {(selectedAgentIds.size > 0 || selectedDates.size > 0) && (
+        <div style={{
+          background: '#f0f9ff', border: '1px solid #bae6fd', borderRadius: 8,
+          padding: '10px 16px', marginBottom: 12, display: 'flex', flexWrap: 'wrap',
+          gap: 10, alignItems: 'center',
+        }}>
+          <span style={{ fontSize: 13, color: '#0369a1', fontWeight: 600 }}>
+            {selectedAgentIds.size} agent{selectedAgentIds.size !== 1 ? 's' : ''} ×{' '}
+            {selectedDates.size} date{selectedDates.size !== 1 ? 's' : ''} selected
+          </span>
+          <select
+            className="filter-select"
+            style={{ minWidth: 200 }}
+            value={bulkCodeId}
+            onChange={(e) => setBulkCodeId(e.target.value)}
+          >
+            <option value="">Select code to apply…</option>
+            {codes.map((c) => (
+              <option key={c.id} value={c.id}>{c.code} — {c.code_name}</option>
+            ))}
+          </select>
+          <button
+            className="btn btn-primary"
+            onClick={bulkApply}
+            disabled={!hasSelections || !bulkCodeId}
+          >
+            Apply to Selected Cells
+          </button>
+          <button
+            className="btn btn-secondary"
+            onClick={() => { setSelectedAgentIds(new Set()); setSelectedDates(new Set()) }}
+          >
+            Clear Selection
+          </button>
+        </div>
+      )}
+
       {agents.length === 0 && !loading && (
         <div className="empty-state">
-          <h3>No agents found</h3>
+          <h3>No assigned agents found</h3>
           <p>Select an organization or group to see agents.</p>
         </div>
       )}
 
-      {loading && <div className="loading">Loading...</div>}
+      {loading && <div className="loading">Loading…</div>}
 
       {!loading && agents.length > 0 && (
-        <div className="att-grid">
-          <table>
+        <div className="att-grid" style={{ overflowX: 'auto' }}>
+          <table style={{ fontSize: 11, borderCollapse: 'collapse', minWidth: 600 }}>
             <thead>
               <tr>
-                <th style={{ textAlign: 'left', minWidth: 140 }}>Agent</th>
-                {weekdays.map((d) => (
-                  <th key={toIso(d)} title={toIso(d)}>
-                    {DAY_LABELS[(d.getDay() + 6) % 7]}<br />
-                    <span style={{ fontWeight: 400 }}>{d.getDate()}</span>
-                  </th>
-                ))}
+                {/* Agent select-all */}
+                <th style={{ padding: '4px 6px', textAlign: 'left', minWidth: 30, background: '#f8f9fb', position: 'sticky', left: 0, zIndex: 2 }}>
+                  <input
+                    type="checkbox"
+                    checked={agents.length > 0 && selectedAgentIds.size === agents.length}
+                    onChange={toggleAllAgents}
+                    title="Select all agents"
+                  />
+                </th>
+                {/* Agent name */}
+                <th style={{ padding: '4px 8px', textAlign: 'left', minWidth: 150, background: '#f8f9fb', position: 'sticky', left: 30, zIndex: 2, whiteSpace: 'nowrap' }}>
+                  Agent
+                </th>
+                {/* Day columns */}
+                {allDays.map((d) => {
+                  const iso = toIso(d)
+                  const bg = colHeaderBg(d, iso, holidayIsos)
+                  const isSelected = selectedDates.has(iso)
+                  return (
+                    <th
+                      key={iso}
+                      style={{ padding: '2px 1px', textAlign: 'center', minWidth: 34, maxWidth: 34, background: bg, cursor: 'pointer', userSelect: 'none', outline: isSelected ? '2px solid #3b82f6' : 'none' }}
+                      onClick={() => toggleDate(iso)}
+                      title={`${iso} — click to select column`}
+                    >
+                      <div style={{ fontSize: 11, fontWeight: 700, lineHeight: 1.2 }}>{d.getDate()}</div>
+                      <div style={{ fontSize: 9, color: '#6b7a8d', lineHeight: 1 }}>{DOW[d.getDay()]}</div>
+                      {isSelected && <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#3b82f6', margin: '2px auto 0' }} />}
+                    </th>
+                  )
+                })}
+                {/* Att% */}
+                <th style={{ padding: '4px 6px', textAlign: 'center', minWidth: 58, background: '#f8f9fb', whiteSpace: 'nowrap' }}>
+                  Att %
+                </th>
               </tr>
             </thead>
             <tbody>
-              {agents.map((agent) => (
-                <tr key={agent.id}>
-                  <td className="agent-col">{agent.agent_name}</td>
-                  {weekdays.map((d) => {
-                    const iso = toIso(d)
-                    const entry = attMap[`${agent.id}:${iso}`]
-                    return (
-                      <td key={iso}>
-                        <button
-                          className={`att-cell-btn ${entry ? 'filled' : 'empty'}`}
-                          onClick={() => handleCellClick(agent, d)}
-                          title={entry ? `${entry.attendance_code}: ${entry.code_name}` : 'Click to enter'}
+              {agents.map((agent) => {
+                const pct = calcPct(agent.id)
+                const rowSelected = selectedAgentIds.has(agent.id)
+                return (
+                  <tr key={agent.id} style={{ background: rowSelected ? '#eff6ff' : undefined }}>
+                    {/* Agent checkbox */}
+                    <td style={{ padding: '2px 6px', textAlign: 'center', borderBottom: '1px solid #f3f4f6', position: 'sticky', left: 0, background: rowSelected ? '#eff6ff' : '#fff', zIndex: 1 }}>
+                      <input
+                        type="checkbox"
+                        checked={rowSelected}
+                        onChange={() => toggleAgent(agent.id)}
+                      />
+                    </td>
+                    {/* Agent name */}
+                    <td style={{ padding: '2px 8px', fontWeight: 500, whiteSpace: 'nowrap', fontSize: 12, borderBottom: '1px solid #f3f4f6', position: 'sticky', left: 30, background: rowSelected ? '#eff6ff' : '#fff', zIndex: 1 }}>
+                      {agent.agent_name}
+                    </td>
+                    {/* Day cells */}
+                    {allDays.map((d) => {
+                      const iso = toIso(d)
+                      const key = `${agent.id}:${iso}`
+                      const cell = effectiveMap[key]
+                      const isPending = key in pendingMap
+                      const dateSelected = selectedDates.has(iso)
+                      const bg = cellBg(d, iso, cell, holidayIsos)
+                      return (
+                        <td
+                          key={iso}
+                          style={{
+                            padding: 1,
+                            borderBottom: '1px solid #f3f4f6',
+                            background: dateSelected ? '#dbeafe' : undefined,
+                          }}
                         >
-                          {entry ? entry.attendance_code : '·'}
-                        </button>
-                      </td>
-                    )
-                  })}
-                </tr>
-              ))}
+                          <button
+                            onClick={() => setEditCell({ agentId: agent.id, dateISO: iso, date: d, agent })}
+                            title={cell ? `${cell.code} — ${cell.code_name}${isPending ? ' (unsaved)' : ''}` : iso}
+                            style={{
+                              width: '100%',
+                              minWidth: 30,
+                              height: 26,
+                              border: isPending ? '2px solid #f59e0b' : '1px solid #e2e6ea',
+                              borderRadius: 3,
+                              background: bg,
+                              cursor: 'pointer',
+                              fontSize: 10,
+                              fontWeight: cell ? 700 : 400,
+                              color: cell ? '#1a1a2e' : '#cbd5e1',
+                              padding: 0,
+                              position: 'relative',
+                            }}
+                          >
+                            {cell ? cell.code : (isWeekend(d) ? '' : '·')}
+                            {isPending && (
+                              <span style={{
+                                position: 'absolute', top: 1, right: 1,
+                                width: 4, height: 4, borderRadius: '50%',
+                                background: '#f59e0b',
+                              }} />
+                            )}
+                          </button>
+                        </td>
+                      )
+                    })}
+                    {/* Att % */}
+                    <td style={{ padding: '2px 6px', textAlign: 'center', fontWeight: 600, borderBottom: '1px solid #f3f4f6', color: pct === null ? '#adb5bd' : pct >= 90 ? '#1a6e3a' : pct >= 75 ? '#854d0e' : '#842029', fontSize: 12 }}>
+                      {pct !== null ? `${pct}%` : '—'}
+                    </td>
+                  </tr>
+                )
+              })}
             </tbody>
           </table>
         </div>
       )}
 
+      {/* Legend */}
+      {!loading && agents.length > 0 && (
+        <div style={{ display: 'flex', gap: 16, marginTop: 8, fontSize: 11, color: '#6b7a8d', flexWrap: 'wrap' }}>
+          <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+            <span style={{ width: 14, height: 14, background: '#f3f4f6', border: '1px solid #e2e6ea', borderRadius: 2, display: 'inline-block' }} /> Weekend
+          </span>
+          <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+            <span style={{ width: 14, height: 14, background: '#dbeafe', border: '1px solid #e2e6ea', borderRadius: 2, display: 'inline-block' }} /> Holiday
+          </span>
+          <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+            <span style={{ width: 14, height: 14, background: '#dcfce7', border: '1px solid #e2e6ea', borderRadius: 2, display: 'inline-block' }} /> Present (available)
+          </span>
+          <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+            <span style={{ width: 14, height: 14, background: '#fef9c3', border: '1px solid #e2e6ea', borderRadius: 2, display: 'inline-block' }} /> Absent / PTO
+          </span>
+          <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+            <span style={{ width: 14, height: 14, background: '#ede9fe', border: '1px solid #e2e6ea', borderRadius: 2, display: 'inline-block' }} /> Off / Holiday code
+          </span>
+          <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+            <span style={{ width: 14, height: 14, background: '#fff', border: '2px solid #f59e0b', borderRadius: 2, display: 'inline-block' }} /> Unsaved change
+          </span>
+        </div>
+      )}
+
+      {/* Single-cell modal */}
       {editCell && (
         <CellModal
           agent={editCell.agent}
           date={editCell.date}
           dateISO={editCell.dateISO}
           codes={codes}
-          current={currentRow}
-          saving={saving}
-          onSave={handleSaveCell}
+          current={editCellCurrent}
+          hasSaved={!!savedMap[`${editCell.agentId}:${editCell.dateISO}`]}
+          onApply={applyCell}
           onClose={() => setEditCell(null)}
         />
       )}
@@ -223,9 +619,61 @@ export default function AttendanceEntry() {
   )
 }
 
-function CellModal({ agent, date, dateISO, codes, current, saving, onSave, onClose }) {
-  const [codeId, setCodeId] = useState(current?.attendance_code_id ?? '')
-  const [notes, setNotes] = useState(current?.notes ?? '')
+// ── Holiday panel ─────────────────────────────────────────────────────────────
+
+function HolidayPanel({ holidays, agents, selectedAgents, overwriteExisting, setOverwriteExisting, onApply }) {
+  if (holidays.length === 0) {
+    return (
+      <div style={{ background: '#f8f9fb', border: '1px solid #e2e6ea', borderRadius: 8, padding: '12px 16px', marginBottom: 12, fontSize: 13, color: '#6b7a8d' }}>
+        No US holidays fall in this month.
+      </div>
+    )
+  }
+
+  return (
+    <div style={{ background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 8, padding: '12px 16px', marginBottom: 12 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+        <span style={{ fontSize: 13, fontWeight: 700, color: '#1e40af' }}>Suggested US Holidays This Month</span>
+        <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: '#374151', cursor: 'pointer' }}>
+          <input type="checkbox" checked={overwriteExisting} onChange={(e) => setOverwriteExisting(e.target.checked)} />
+          Overwrite existing entries
+        </label>
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+        {holidays.map((h) => (
+          <div key={h.iso} style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', fontSize: 12 }}>
+            <span style={{ minWidth: 200, fontWeight: 500 }}>{h.name}</span>
+            <span style={{ color: '#6b7a8d', minWidth: 90 }}>{h.iso}</span>
+            {selectedAgents.length > 0 && (
+              <button
+                className="btn btn-sm btn-secondary"
+                onClick={() => onApply(h.iso, selectedAgents)}
+              >
+                Apply to {selectedAgents.length} selected
+              </button>
+            )}
+            <button
+              className="btn btn-sm btn-secondary"
+              onClick={() => onApply(h.iso, agents)}
+            >
+              Apply to all visible agents
+            </button>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+// ── Single-cell modal ─────────────────────────────────────────────────────────
+
+function CellModal({ agent, date, dateISO, codes, current, hasSaved, onApply, onClose }) {
+  // pending cells have code's own `id`; saved DB rows have `attendance_code_id`
+  const initialCodeId = current
+    ? (current.isPending ? String(current.id) : String(current.attendance_code_id ?? ''))
+    : ''
+  const [codeId, setCodeId] = useState(initialCodeId)
+  const [notes, setNotes]   = useState(current?.notes ?? '')
 
   const dateLabel = date.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })
 
@@ -235,23 +683,28 @@ function CellModal({ agent, date, dateISO, codes, current, saving, onSave, onClo
       onClose={onClose}
       footer={
         <>
-          {current && (
-            <button className="btn btn-danger" onClick={() => onSave(null, '')} disabled={saving}>
+          {(current || hasSaved) && (
+            <button className="btn btn-danger" onClick={() => onApply(agent.id, dateISO, null, '')}>
               Clear Entry
             </button>
           )}
-          <button className="btn btn-secondary" onClick={onClose} disabled={saving}>Cancel</button>
+          <button className="btn btn-secondary" onClick={onClose}>Cancel</button>
           <button
             className="btn btn-primary"
-            onClick={() => onSave(codeId ? Number(codeId) : null, notes)}
-            disabled={saving || !codeId}
+            onClick={() => onApply(agent.id, dateISO, codeId ? Number(codeId) : null, notes)}
+            disabled={!codeId}
           >
-            {saving ? 'Saving…' : 'Save'}
+            Apply
           </button>
         </>
       }
     >
       <p style={{ fontSize: 13, color: '#6b7a8d', marginBottom: 16 }}>{dateLabel}</p>
+      {current?.isPending && (
+        <div style={{ background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 6, padding: '6px 10px', marginBottom: 12, fontSize: 12, color: '#92400e' }}>
+          Unsaved change — click Save All Changes to persist.
+        </div>
+      )}
       <div className="form-group" style={{ marginBottom: 14 }}>
         <label className="form-label">Attendance Code</label>
         <select className="form-select" value={codeId} onChange={(e) => setCodeId(e.target.value)}>
@@ -263,7 +716,7 @@ function CellModal({ agent, date, dateISO, codes, current, saving, onSave, onClo
       </div>
       <div className="form-group">
         <label className="form-label">Notes (optional)</label>
-        <textarea className="form-textarea" value={notes} onChange={(e) => setNotes(e.target.value)} rows={3} />
+        <textarea className="form-textarea" value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} />
       </div>
     </Modal>
   )
