@@ -191,9 +191,7 @@ export default function AdminAgents() {
               >
                 <option value="">— Unassigned —</option>
                 {modalGroups.map((g) => (
-                  <option key={g.id} value={g.id}>
-                    {g.group_name}{g.metrics_cfg_organizations?.organization_name ? ` (${g.metrics_cfg_organizations.organization_name})` : ''}
-                  </option>
+                  <option key={g.id} value={g.id}>{g.group_name}</option>
                 ))}
               </select>
             </div>
