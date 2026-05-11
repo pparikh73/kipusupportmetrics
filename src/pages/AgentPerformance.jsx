@@ -54,13 +54,17 @@ function computePeriodActual(rows, unitType) {
   return unitType === 'count' ? sum : sum / withData.length
 }
 
-function deriveStatus(actual, targetValue, toleranceValue, directionGood) {
+// Uses the view's refRow directly so direction/target/tolerance all come from
+// the same source that Supabase uses — avoids mismatches with config values.
+function deriveStatus(actual, refRow) {
   if (actual == null) return 'no_data'
-  if (targetValue == null) return 'no_target'
-  const tol = toleranceValue ?? 0
-  return directionGood === 'higher'
-    ? actual >= targetValue - tol ? 'on_track' : 'off_track'
-    : actual <= targetValue + tol ? 'on_track' : 'off_track'
+  if (!refRow) return 'no_data'
+  const { target_value, tolerance_value, direction_good } = refRow
+  if (target_value == null) return 'no_target'
+  const tol = tolerance_value ?? 0
+  if (direction_good === 'higher') return actual >= target_value - tol ? 'on_track' : 'off_track'
+  if (direction_good === 'lower')  return actual <= target_value + tol ? 'on_track' : 'off_track'
+  return 'no_target'
 }
 
 // ── Sub-components ────────────────────────────────────────────────────────────
@@ -87,40 +91,41 @@ function RollupTable({ title, periods, configuredMetrics, yearDetail }) {
         <table>
           <thead>
             <tr>
-              <th style={{ minWidth: 160 }}>Metric</th>
-              {periods.map((p) => <th key={p.label} style={{ minWidth: 110 }}>{p.label}</th>)}
+              <th style={{ minWidth: 180, fontSize: 13, fontWeight: 700 }}>Metric</th>
+              {periods.map((p) => (
+                <th key={p.label} style={{ minWidth: 120, fontSize: 13, fontWeight: 700, textAlign: 'center' }}>
+                  {p.label}
+                </th>
+              ))}
             </tr>
           </thead>
           <tbody>
             {configuredMetrics.map((metric) => {
               const metricRows = yearDetail.filter((r) => r.metric_key === metric.metric_key)
-              // Use most recent row as target/tolerance reference
-              const refRow = [...metricRows].sort((a, b) => b.metric_month.localeCompare(a.metric_month))[0]
+              // Most recent month with data is the target/tolerance reference
+              const refRow = [...metricRows]
+                .filter((r) => r.actual_value != null)
+                .sort((a, b) => b.metric_month.localeCompare(a.metric_month))[0]
               return (
                 <tr key={metric.metric_key}>
-                  <td>{metric.metric_name}</td>
+                  <td style={{ fontWeight: 600, fontSize: 13 }}>{metric.metric_name}</td>
                   {periods.map((p) => {
                     const periodRows = metricRows.filter((r) =>
                       p.months.includes(metricMonthNum(r.metric_month))
                     )
                     const actual = computePeriodActual(periodRows, metric.unit_type)
-                    const status = deriveStatus(
-                      actual,
-                      refRow?.target_value,
-                      refRow?.tolerance_value,
-                      metric.direction_good
-                    )
+                    const status = deriveStatus(actual, refRow)
                     return (
-                      <td key={p.label}>
+                      <td key={p.label} style={{ textAlign: 'center' }}>
                         {actual == null ? (
                           <span style={{ color: '#adb5bd' }}>—</span>
                         ) : (
-                          <div>
-                            <div style={{ fontWeight: 500 }}>{formatValue(actual, metric.unit_type)}</div>
-                            <span className={`badge ${statusClass(status)}`} style={{ fontSize: 10 }}>
+                          <>
+                            <div style={{ fontWeight: 600, fontSize: 13 }}>{formatValue(actual, metric.unit_type)}</div>
+                            <span className={`badge ${statusClass(status)}`} style={{ fontSize: 10, marginTop: 3, display: 'inline-block' }}>
                               {statusLabel(status)}
                             </span>
-                          </div>
+                          </>
                         )}
                       </td>
                     )
@@ -265,7 +270,6 @@ export default function AgentPerformance() {
   const coreRows = mergeMetrics(configuredCore, monthDetail)
   const visibilityRows = mergeMetrics(configuredVisibility, monthDetail)
 
-  const isIncomplete = scorecard?.rating_label?.toLowerCase().includes('incomplete')
   const selectedMonthLabel = MONTH_OPTIONS.find((m) => m.value === selMonth)?.label ?? selMonth
 
   return (
@@ -325,12 +329,6 @@ export default function AgentPerformance() {
 
       {agentId && !loading && (
         <>
-          {isIncomplete && (
-            <div className="info-msg">
-              Incomplete Data — one or more required metrics are missing. Attendance has not been entered yet, so the score cannot reach 9/9.
-            </div>
-          )}
-
           {/* Summary cards */}
           <div className="cards-row">
             <div className="stat-card">
