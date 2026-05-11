@@ -4,7 +4,7 @@ import {
   getLeaderScorecards, getGroupMonthDetail, getGroupYearDetail,
   getMetrics,
 } from '../lib/api'
-import { formatValue, statusClass, statusLabel, ratingClass, recentMonths } from '../lib/format'
+import { formatValue, statusClass, statusLabel, recentMonths } from '../lib/format'
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -49,23 +49,21 @@ function deriveStatus(actual, refRow) {
   return 'no_target'
 }
 
-// Returns "N/M" string for agent/period rollup, or null if no data
-function computeAgentPeriodRollup(agentId, periodMonths, yearDetail, configuredCore) {
+// Returns { [metricKey]: { actual, status, unitType } } for an agent/period
+function computeAgentPeriodMetrics(agentId, periodMonths, yearDetail, configuredCore) {
   const agentRows = yearDetail.filter((r) => r.agent_id === agentId)
-  let onTrack = 0
-  let withData = 0
+  const result = {}
   configuredCore.forEach((metric) => {
     const metricRows = agentRows.filter(
       (r) => r.metric_key === metric.metric_key && periodMonths.includes(metricMonthNum(r.metric_month))
     )
     const dataRows = metricRows.filter((r) => r.actual_value != null)
-    if (!dataRows.length) return
+    if (!dataRows.length) { result[metric.metric_key] = { actual: null, status: 'no_data', unitType: metric.unit_type }; return }
     const refRow = [...dataRows].sort((a, b) => b.metric_month.localeCompare(a.metric_month))[0]
     const actual = computePeriodActual(dataRows, metric.unit_type)
-    withData++
-    if (deriveStatus(actual, refRow) === 'on_track') onTrack++
+    result[metric.metric_key] = { actual, status: deriveStatus(actual, refRow), unitType: metric.unit_type }
   })
-  return withData > 0 ? `${onTrack}/${withData}` : null
+  return result
 }
 
 // ── Sub-components ────────────────────────────────────────────────────────────
@@ -85,13 +83,17 @@ function MetricCell({ row }) {
   )
 }
 
-function RollupSummaryCell({ value }) {
-  if (!value) return <td style={{ textAlign: 'center', color: '#adb5bd' }}>—</td>
-  const [on, total] = value.split('/').map(Number)
-  const color = on === total ? '#1a6e3a' : on === 0 ? '#842029' : '#664d00'
+function PeriodMetricCell({ cell }) {
+  if (!cell || cell.actual == null) {
+    return <td style={{ textAlign: 'center', color: '#adb5bd' }}>—</td>
+  }
+  const sc = statusClass(cell.status)
   return (
-    <td style={{ textAlign: 'center', fontWeight: 700, fontSize: 13, color }}>
-      {value}
+    <td style={{ textAlign: 'center' }}>
+      <div style={{ fontWeight: 600, fontSize: 12 }}>{formatValue(cell.actual, cell.unitType)}</div>
+      <span className={`badge ${sc}`} style={{ fontSize: 10, marginTop: 2, display: 'inline-block' }}>
+        {statusLabel(cell.status)}
+      </span>
     </td>
   )
 }
@@ -173,13 +175,6 @@ export default function TeamDashboard() {
   // ── Derived data ────────────────────────────────────────────────────────────
 
   const configuredCore = configuredMetrics.filter((m) => m.counts_toward_rating && !m.visibility_only)
-
-  // Lookup: agentId → scorecard row
-  const scorecardByAgent = useMemo(() => {
-    const map = {}
-    scorecards.forEach((r) => { map[r.agent_id] = r })
-    return map
-  }, [scorecards])
 
   // Lookup: agentId → metricKey → detail row
   const detailByAgent = useMemo(() => {
@@ -308,11 +303,6 @@ export default function TeamDashboard() {
                 <thead>
                   <tr>
                     <th style={{ minWidth: 150, position: 'sticky', left: 0, background: '#f8f9fb', zIndex: 1 }}>Agent</th>
-                    <th style={{ minWidth: 100 }}>Organization</th>
-                    <th style={{ minWidth: 120 }}>Rating</th>
-                    <th style={{ minWidth: 70, textAlign: 'center' }}>On Track</th>
-                    <th style={{ minWidth: 70, textAlign: 'center' }}>Off Track</th>
-                    <th style={{ minWidth: 70, textAlign: 'center' }}>With Data</th>
                     {configuredCore.map((m) => (
                       <th key={m.metric_key} style={{ minWidth: 100, textAlign: 'center' }} title={m.metric_name}>
                         {m.metric_name}
@@ -322,29 +312,11 @@ export default function TeamDashboard() {
                 </thead>
                 <tbody>
                   {displayAgents.map((agent) => {
-                    const sc = scorecardByAgent[agent.id]
                     const agentDetail = detailByAgent[agent.id] ?? {}
                     return (
                       <tr key={agent.id}>
                         <td style={{ fontWeight: 600, position: 'sticky', left: 0, background: '#fff', zIndex: 1 }}>
                           {agent.agent_name}
-                        </td>
-                        <td style={{ color: '#6b7a8d' }}>
-                          {sc?.organization_name ?? '—'}
-                        </td>
-                        <td>
-                          <span className={ratingClass(sc?.rating_label)}>
-                            {sc?.rating_label ?? '—'}
-                          </span>
-                        </td>
-                        <td style={{ textAlign: 'center', color: '#1a6e3a', fontWeight: 600 }}>
-                          {sc?.on_track_count ?? '—'}
-                        </td>
-                        <td style={{ textAlign: 'center', color: '#842029', fontWeight: 600 }}>
-                          {sc?.off_track_count ?? '—'}
-                        </td>
-                        <td style={{ textAlign: 'center' }}>
-                          {sc?.scoring_metrics_with_data ?? '—'}
                         </td>
                         {configuredCore.map((m) => (
                           <MetricCell key={m.metric_key} row={agentDetail[m.metric_key]} />
@@ -381,24 +353,33 @@ export default function TeamDashboard() {
                 <table style={{ fontSize: 12 }}>
                   <thead>
                     <tr>
-                      <th style={{ minWidth: 150, fontSize: 13, fontWeight: 700 }}>Agent</th>
+                      <th rowSpan={2} style={{ minWidth: 150, fontSize: 13, fontWeight: 700, verticalAlign: 'bottom' }}>Agent</th>
                       {QUARTERS.map((q) => (
-                        <th key={q.label} style={{ minWidth: 90, textAlign: 'center', fontSize: 13, fontWeight: 700 }}>
+                        <th key={q.label} colSpan={configuredCore.length} style={{ textAlign: 'center', fontSize: 13, fontWeight: 700, borderBottom: '1px solid #dee2e6' }}>
                           {q.label}
                         </th>
                       ))}
+                    </tr>
+                    <tr>
+                      {QUARTERS.map((q) =>
+                        configuredCore.map((m) => (
+                          <th key={`${q.label}-${m.metric_key}`} style={{ minWidth: 90, textAlign: 'center', fontSize: 11, fontWeight: 600 }}>
+                            {m.metric_name}
+                          </th>
+                        ))
+                      )}
                     </tr>
                   </thead>
                   <tbody>
                     {displayAgents.map((agent) => (
                       <tr key={agent.id}>
                         <td style={{ fontWeight: 600, fontSize: 13 }}>{agent.agent_name}</td>
-                        {QUARTERS.map((q) => (
-                          <RollupSummaryCell
-                            key={q.label}
-                            value={computeAgentPeriodRollup(agent.id, q.months, yearDetail, configuredCore)}
-                          />
-                        ))}
+                        {QUARTERS.map((q) => {
+                          const metrics = computeAgentPeriodMetrics(agent.id, q.months, yearDetail, configuredCore)
+                          return configuredCore.map((m) => (
+                            <PeriodMetricCell key={`${q.label}-${m.metric_key}`} cell={metrics[m.metric_key]} />
+                          ))
+                        })}
                       </tr>
                     ))}
                   </tbody>
@@ -411,24 +392,33 @@ export default function TeamDashboard() {
                 <table style={{ fontSize: 12 }}>
                   <thead>
                     <tr>
-                      <th style={{ minWidth: 150, fontSize: 13, fontWeight: 700 }}>Agent</th>
+                      <th rowSpan={2} style={{ minWidth: 150, fontSize: 13, fontWeight: 700, verticalAlign: 'bottom' }}>Agent</th>
                       {HALVES.map((h) => (
-                        <th key={h.label} style={{ minWidth: 90, textAlign: 'center', fontSize: 13, fontWeight: 700 }}>
+                        <th key={h.label} colSpan={configuredCore.length} style={{ textAlign: 'center', fontSize: 13, fontWeight: 700, borderBottom: '1px solid #dee2e6' }}>
                           {h.label}
                         </th>
                       ))}
+                    </tr>
+                    <tr>
+                      {HALVES.map((h) =>
+                        configuredCore.map((m) => (
+                          <th key={`${h.label}-${m.metric_key}`} style={{ minWidth: 90, textAlign: 'center', fontSize: 11, fontWeight: 600 }}>
+                            {m.metric_name}
+                          </th>
+                        ))
+                      )}
                     </tr>
                   </thead>
                   <tbody>
                     {displayAgents.map((agent) => (
                       <tr key={agent.id}>
                         <td style={{ fontWeight: 600, fontSize: 13 }}>{agent.agent_name}</td>
-                        {HALVES.map((h) => (
-                          <RollupSummaryCell
-                            key={h.label}
-                            value={computeAgentPeriodRollup(agent.id, h.months, yearDetail, configuredCore)}
-                          />
-                        ))}
+                        {HALVES.map((h) => {
+                          const metrics = computeAgentPeriodMetrics(agent.id, h.months, yearDetail, configuredCore)
+                          return configuredCore.map((m) => (
+                            <PeriodMetricCell key={`${h.label}-${m.metric_key}`} cell={metrics[m.metric_key]} />
+                          ))
+                        })}
                       </tr>
                     ))}
                   </tbody>
