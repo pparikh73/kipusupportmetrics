@@ -59,7 +59,7 @@ export default function AttendanceEntry() {
   }, [orgId])
 
   useEffect(() => {
-    getAgents(orgId || undefined, groupId || undefined).then(setAgents).catch((e) => setError(e.message))
+    getAgents(orgId || undefined, groupId || undefined, { assignedOnly: false }).then(setAgents).catch((e) => setError(e.message))
   }, [orgId, groupId])
 
   const loadAttendance = useCallback(async () => {

@@ -30,17 +30,36 @@ export async function getGroups(organizationId) {
   return data
 }
 
-export async function getAgents(organizationId, externalGroupId) {
+// assignedOnly = true → only active agents with both org and group set (for dashboards)
+export async function getAgents(organizationId, externalGroupId, { assignedOnly = true } = {}) {
   let query = supabase
     .from('metrics_cfg_agents')
     .select('id, external_agent_key, zendesk_user_id, agent_name, email, active, hire_date, go_live_date, notes, organization_id, external_group_id')
     .eq('active', true)
     .order('agent_name')
+  if (assignedOnly) {
+    query = query.not('organization_id', 'is', null).not('external_group_id', 'is', null)
+  }
   if (organizationId) query = query.eq('organization_id', organizationId)
   if (externalGroupId) query = query.eq('external_group_id', externalGroupId)
   const { data, error } = await query
   if (error) throw error
   return data
+}
+
+// Returns { [groupId]: count } for assigned active agents per group
+export async function getAgentCountsByGroup() {
+  const { data, error } = await supabase
+    .from('metrics_cfg_agents')
+    .select('external_group_id')
+    .eq('active', true)
+    .not('organization_id', 'is', null)
+    .not('external_group_id', 'is', null)
+  if (error) throw error
+  return data.reduce((acc, row) => {
+    acc[row.external_group_id] = (acc[row.external_group_id] ?? 0) + 1
+    return acc
+  }, {})
 }
 
 export async function getAttendanceCodes() {

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { getAllGroups, upsertGroup, getAllOrganizations } from '../../lib/api'
+import { getAllGroups, upsertGroup, getAllOrganizations, getAgentCountsByGroup } from '../../lib/api'
 import AdminTable from '../../components/AdminTable'
 import Modal from '../../components/Modal'
 
@@ -8,6 +8,7 @@ const EMPTY = { group_key: '', group_name: '', organization_id: '', active: true
 export default function AdminGroups() {
   const [rows, setRows] = useState([])
   const [orgs, setOrgs] = useState([])
+  const [agentCounts, setAgentCounts] = useState({})
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [editing, setEditing] = useState(null)
@@ -15,8 +16,8 @@ export default function AdminGroups() {
 
   const load = () => {
     setLoading(true)
-    Promise.all([getAllGroups(), getAllOrganizations()])
-      .then(([g, o]) => { setRows(g); setOrgs(o) })
+    Promise.all([getAllGroups(), getAllOrganizations(), getAgentCountsByGroup()])
+      .then(([g, o, counts]) => { setRows(g); setOrgs(o); setAgentCounts(counts) })
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false))
   }
@@ -42,6 +43,7 @@ export default function AdminGroups() {
     { key: 'group_name', label: 'Group Name' },
     { key: 'group_key', label: 'Key' },
     { key: 'organization_name', label: 'Organization', render: (r) => r.metrics_cfg_organizations?.organization_name ?? '—' },
+    { key: 'assigned_agents', label: 'Assigned Agents', render: (r) => agentCounts[r.id] ?? 0 },
     { key: 'display_order', label: 'Order' },
   ]
 
