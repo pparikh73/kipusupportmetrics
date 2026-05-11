@@ -1,80 +1,230 @@
-import { useState, useEffect, useCallback } from 'react'
-import { getOrganizations, getGroups, getAgents, getLeaderScorecards } from '../lib/api'
-import { ratingClass, currentMonth, recentMonths } from '../lib/format'
+import { useState, useEffect, useMemo } from 'react'
+import {
+  getOrganizations, getGroups, getAgents,
+  getLeaderScorecards, getGroupMonthDetail, getGroupYearDetail,
+  getMetrics,
+} from '../lib/api'
+import { formatValue, statusClass, statusLabel, ratingClass, recentMonths } from '../lib/format'
 
-export default function LeaderDashboard() {
-  const months = recentMonths(18)
-  const [orgs, setOrgs] = useState([])
+// ── Constants ─────────────────────────────────────────────────────────────────
+
+function getYearOptions() {
+  const cur = new Date().getFullYear()
+  const years = []
+  for (let y = cur + 1; y >= 2023; y--) years.push(String(y))
+  return years
+}
+
+const QUARTERS = [
+  { label: 'Q1', months: [1, 2, 3] },
+  { label: 'Q2', months: [4, 5, 6] },
+  { label: 'Q3', months: [7, 8, 9] },
+  { label: 'Q4', months: [10, 11, 12] },
+]
+const HALVES = [
+  { label: 'H1', months: [1, 2, 3, 4, 5, 6] },
+  { label: 'H2', months: [7, 8, 9, 10, 11, 12] },
+]
+
+// ── Rollup helpers ────────────────────────────────────────────────────────────
+
+function metricMonthNum(metricMonth) {
+  return parseInt(metricMonth.slice(5, 7), 10)
+}
+
+function computePeriodActual(rows, unitType) {
+  const withData = rows.filter((r) => r.actual_value != null)
+  if (!withData.length) return null
+  const sum = withData.reduce((s, r) => s + r.actual_value, 0)
+  return unitType === 'count' ? sum : sum / withData.length
+}
+
+function deriveStatus(actual, refRow) {
+  if (actual == null || !refRow) return 'no_data'
+  const { target_value, tolerance_value, direction_good } = refRow
+  if (target_value == null) return 'no_target'
+  const tol = tolerance_value ?? 0
+  if (direction_good === 'higher') return actual >= target_value - tol ? 'on_track' : 'off_track'
+  if (direction_good === 'lower')  return actual <= target_value + tol ? 'on_track' : 'off_track'
+  return 'no_target'
+}
+
+// Returns "N/M" string for agent/period rollup, or null if no data
+function computeAgentPeriodRollup(agentId, periodMonths, yearDetail, configuredCore) {
+  const agentRows = yearDetail.filter((r) => r.agent_id === agentId)
+  let onTrack = 0
+  let withData = 0
+  configuredCore.forEach((metric) => {
+    const metricRows = agentRows.filter(
+      (r) => r.metric_key === metric.metric_key && periodMonths.includes(metricMonthNum(r.metric_month))
+    )
+    const dataRows = metricRows.filter((r) => r.actual_value != null)
+    if (!dataRows.length) return
+    const refRow = [...dataRows].sort((a, b) => b.metric_month.localeCompare(a.metric_month))[0]
+    const actual = computePeriodActual(dataRows, metric.unit_type)
+    withData++
+    if (deriveStatus(actual, refRow) === 'on_track') onTrack++
+  })
+  return withData > 0 ? `${onTrack}/${withData}` : null
+}
+
+// ── Sub-components ────────────────────────────────────────────────────────────
+
+function MetricCell({ row }) {
+  if (!row || row.actual_value == null) {
+    return <td style={{ textAlign: 'center', color: '#adb5bd' }}>—</td>
+  }
+  const sc = statusClass(row.metric_status)
+  return (
+    <td style={{ textAlign: 'center' }}>
+      <div style={{ fontWeight: 600, fontSize: 12 }}>{formatValue(row.actual_value, row.unit_type)}</div>
+      <span className={`badge ${sc}`} style={{ fontSize: 10, marginTop: 2, display: 'inline-block' }}>
+        {statusLabel(row.metric_status)}
+      </span>
+    </td>
+  )
+}
+
+function RollupSummaryCell({ value }) {
+  if (!value) return <td style={{ textAlign: 'center', color: '#adb5bd' }}>—</td>
+  const [on, total] = value.split('/').map(Number)
+  const color = on === total ? '#1a6e3a' : on === 0 ? '#842029' : '#664d00'
+  return (
+    <td style={{ textAlign: 'center', fontWeight: 700, fontSize: 13, color }}>
+      {value}
+    </td>
+  )
+}
+
+// ── Page ──────────────────────────────────────────────────────────────────────
+
+export default function TeamDashboard() {
+  const monthOptions = recentMonths(24)
+  const yearOptions = getYearOptions()
+
+  const [orgs, setOrgs]     = useState([])
   const [groups, setGroups] = useState([])
   const [agents, setAgents] = useState([])
+  const [configuredMetrics, setConfiguredMetrics] = useState([])
 
-  const [orgId, setOrgId] = useState('')
+  const [orgId, setOrgId]     = useState('')
   const [groupId, setGroupId] = useState('')
-  const [agentId, setAgentId] = useState('')
-  const [month, setMonth] = useState(currentMonth())
+  const [search, setSearch]   = useState('')
+  const [month, setMonth]     = useState(monthOptions[0]?.value ?? '')
+  const [rollupYear, setRollupYear] = useState(String(new Date().getFullYear()))
 
-  const [rows, setRows] = useState([])
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState('')
+  const [scorecards, setScorecards]   = useState([])
+  const [monthDetail, setMonthDetail] = useState([])
+  const [yearDetail, setYearDetail]   = useState([])
 
+  const [loading, setLoading]         = useState(false)
+  const [yearLoading, setYearLoading] = useState(false)
+  const [error, setError]             = useState('')
+
+  // Load reference data once
   useEffect(() => {
     getOrganizations().then(setOrgs).catch((e) => setError(e.message))
-    getGroups().then(setGroups).catch((e) => setError(e.message))
+    getMetrics()
+      .then((all) => setConfiguredMetrics(all.filter((m) => m.active)))
+      .catch((e) => setError(e.message))
+    getGroups()
+      .then((g) => {
+        setGroups(g)
+        if (g.length > 0) setGroupId(String(g[0].id)) // default to first group
+      })
+      .catch((e) => setError(e.message))
   }, [])
 
+  // Load agents when org/group changes
   useEffect(() => {
-    setAgentId('')
-    getAgents(orgId || undefined, groupId || undefined).then(setAgents).catch((e) => setError(e.message))
+    if (!groupId) return
+    getAgents(orgId || undefined, groupId ? Number(groupId) : undefined)
+      .then(setAgents)
+      .catch((e) => setError(e.message))
   }, [orgId, groupId])
 
-  const loadData = useCallback(async () => {
+  // Load monthly data when group/month/org changes
+  useEffect(() => {
+    if (!groupId || !month) return
     setLoading(true)
     setError('')
-    try {
-      const data = await getLeaderScorecards({
-        month,
-        organizationId: orgId || undefined,
-        externalGroupId: groupId || undefined,
-        agentId: agentId || undefined,
-      })
-      setRows(data)
-    } catch (e) {
-      setError(e.message)
-    } finally {
-      setLoading(false)
-    }
-  }, [month, orgId, groupId, agentId])
+    Promise.all([
+      getLeaderScorecards({ month, externalGroupId: Number(groupId), organizationId: orgId ? Number(orgId) : undefined }),
+      getGroupMonthDetail({ month, externalGroupId: Number(groupId), organizationId: orgId ? Number(orgId) : undefined }),
+    ])
+      .then(([sc, det]) => { setScorecards(sc); setMonthDetail(det) })
+      .catch((e) => setError(e.message))
+      .finally(() => setLoading(false))
+  }, [groupId, month, orgId])
 
-  useEffect(() => { loadData() }, [loadData])
+  // Load year data when group/year/org changes
+  useEffect(() => {
+    if (!groupId || !rollupYear) return
+    setYearLoading(true)
+    getGroupYearDetail({
+      year: rollupYear,
+      externalGroupId: Number(groupId),
+      organizationId: orgId ? Number(orgId) : undefined,
+    })
+      .then(setYearDetail)
+      .catch((e) => setError(e.message))
+      .finally(() => setYearLoading(false))
+  }, [groupId, rollupYear, orgId])
 
-  // Derived stats
-  const ratingCounts = rows.reduce((acc, r) => {
-    const label = r.rating_label ?? 'Unknown'
-    acc[label] = (acc[label] ?? 0) + 1
+  // ── Derived data ────────────────────────────────────────────────────────────
+
+  const configuredCore = configuredMetrics.filter((m) => m.counts_toward_rating && !m.visibility_only)
+
+  // Lookup: agentId → scorecard row
+  const scorecardByAgent = useMemo(() => {
+    const map = {}
+    scorecards.forEach((r) => { map[r.agent_id] = r })
+    return map
+  }, [scorecards])
+
+  // Lookup: agentId → metricKey → detail row
+  const detailByAgent = useMemo(() => {
+    const map = {}
+    monthDetail.forEach((r) => {
+      if (!map[r.agent_id]) map[r.agent_id] = {}
+      map[r.agent_id][r.metric_key] = r
+    })
+    return map
+  }, [monthDetail])
+
+  // Filtered and searched agent list
+  const displayAgents = agents.filter((a) =>
+    !search || a.agent_name.toLowerCase().includes(search.toLowerCase())
+  )
+
+  // Summary stats
+  const selectedGroup = groups.find((g) => String(g.id) === groupId)
+  const ratingDist = scorecards.reduce((acc, r) => {
+    const lbl = r.rating_label ?? 'Unknown'
+    acc[lbl] = (acc[lbl] ?? 0) + 1
     return acc
   }, {})
+  const avgOnTrack = scorecards.length
+    ? (scorecards.reduce((s, r) => s + (r.on_track_count ?? 0), 0) / scorecards.length).toFixed(1)
+    : '—'
 
-  const sorted = [...rows].sort((a, b) => (b.on_track_count ?? 0) - (a.on_track_count ?? 0))
-  const topPerformers = sorted.slice(0, 5)
-  const needsAttention = [...rows]
-    .filter((r) => (r.off_track_count ?? 0) > 0)
-    .sort((a, b) => (b.off_track_count ?? 0) - (a.off_track_count ?? 0))
-    .slice(0, 5)
+  const monthLabel = monthOptions.find((m) => m.value === month)?.label ?? month
 
   return (
     <div className="page">
       <div className="page-header">
-        <h1 className="page-title">Leader Dashboard</h1>
-        <p className="page-subtitle">Monthly team performance overview</p>
+        <h1 className="page-title">Team Dashboard</h1>
+        <p className="page-subtitle">Group performance by month</p>
       </div>
 
       {error && <div className="error-msg">{error}</div>}
 
+      {/* Filter bar */}
       <div className="filter-bar">
         <div className="filter-group">
           <label className="filter-label">Month</label>
           <select className="filter-select" value={month} onChange={(e) => setMonth(e.target.value)}>
-            {months.map((m) => <option key={m.value} value={m.value}>{m.label}</option>)}
+            {monthOptions.map((m) => <option key={m.value} value={m.value}>{m.label}</option>)}
           </select>
         </div>
         <div className="filter-group">
@@ -87,117 +237,205 @@ export default function LeaderDashboard() {
         <div className="filter-group">
           <label className="filter-label">Group</label>
           <select className="filter-select" value={groupId} onChange={(e) => setGroupId(e.target.value)}>
-            <option value="">All Groups</option>
+            <option value="">Select Group</option>
             {groups.map((g) => <option key={g.id} value={g.id}>{g.group_name}</option>)}
           </select>
         </div>
         <div className="filter-group">
-          <label className="filter-label">Agent (optional)</label>
-          <select className="filter-select" value={agentId} onChange={(e) => setAgentId(e.target.value)}>
-            <option value="">All Agents</option>
-            {agents.map((a) => <option key={a.id} value={a.id}>{a.agent_name}</option>)}
-          </select>
+          <label className="filter-label">Search Agent</label>
+          <input
+            className="filter-select"
+            style={{ minWidth: 160 }}
+            placeholder="Filter by name…"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
         </div>
       </div>
 
-      {loading && <div className="loading">Loading...</div>}
+      {!groupId && (
+        <div className="empty-state">
+          <h3>Select a group to view team performance</h3>
+        </div>
+      )}
 
-      {!loading && (
+      {groupId && loading && <div className="loading">Loading...</div>}
+
+      {groupId && !loading && (
         <>
-          {/* Rating Distribution */}
-          {Object.keys(ratingCounts).length > 0 && (
-            <div className="card">
-              <div className="card-title">Rating Distribution</div>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12 }}>
-                {Object.entries(ratingCounts).map(([label, count]) => (
-                  <div key={label} style={{ minWidth: 140, border: '1px solid #e2e6ea', borderRadius: 8, padding: '10px 16px', background: '#f8f9fb' }}>
-                    <div className={`${ratingClass(label)}`} style={{ fontSize: 13, fontWeight: 600, marginBottom: 4 }}>{label}</div>
-                    <div style={{ fontSize: 24, fontWeight: 700 }}>{count}</div>
-                    <div style={{ fontSize: 11, color: '#6b7a8d' }}>agent{count !== 1 ? 's' : ''}</div>
-                  </div>
-                ))}
+          {/* Summary cards */}
+          <div className="cards-row">
+            <div className="stat-card">
+              <div className="stat-label">Group</div>
+              <div className="stat-value" style={{ fontSize: 16, marginTop: 4, color: '#1a1a2e' }}>
+                {selectedGroup?.group_name ?? '—'}
               </div>
+              <div className="stat-sub">{monthLabel}</div>
             </div>
-          )}
-
-          <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', marginBottom: 20 }}>
-            {topPerformers.length > 0 && (
-              <div className="card" style={{ flex: 1, minWidth: 280 }}>
-                <div className="card-title" style={{ color: '#1a6e3a' }}>Top Performers</div>
-                <div className="table-wrap" style={{ marginBottom: 0 }}>
-                  <table>
-                    <thead><tr><th>Agent</th><th>Group</th><th>On Track</th></tr></thead>
-                    <tbody>
-                      {topPerformers.map((r) => (
-                        <tr key={r.agent_id}>
-                          <td>{r.agent_name}</td>
-                          <td>{r.external_group_name ?? '—'}</td>
-                          <td><span className="badge status-on-track">{r.on_track_count}</span></td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+            <div className="stat-card">
+              <div className="stat-label">Agents</div>
+              <div className="stat-value">{agents.length}</div>
+              <div className="stat-sub">assigned active</div>
+            </div>
+            <div className="stat-card">
+              <div className="stat-label">Avg On Track</div>
+              <div className="stat-value" style={{ color: '#1a6e3a' }}>{avgOnTrack}</div>
+              <div className="stat-sub">metrics / agent</div>
+            </div>
+            {Object.entries(ratingDist).map(([label, count]) => (
+              <div key={label} className="stat-card">
+                <div className="stat-label">Rating</div>
+                <div className={`stat-value ${ratingClass(label)}`} style={{ fontSize: 16, marginTop: 4 }}>
+                  {label}
                 </div>
+                <div className="stat-sub">{count} agent{count !== 1 ? 's' : ''}</div>
               </div>
-            )}
-
-            {needsAttention.length > 0 && (
-              <div className="card" style={{ flex: 1, minWidth: 280 }}>
-                <div className="card-title" style={{ color: '#842029' }}>Needs Attention</div>
-                <div className="table-wrap" style={{ marginBottom: 0 }}>
-                  <table>
-                    <thead><tr><th>Agent</th><th>Group</th><th>Off Track</th></tr></thead>
-                    <tbody>
-                      {needsAttention.map((r) => (
-                        <tr key={r.agent_id}>
-                          <td>{r.agent_name}</td>
-                          <td>{r.external_group_name ?? '—'}</td>
-                          <td><span className="badge status-off-track">{r.off_track_count}</span></td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            )}
+            ))}
           </div>
 
-          {/* Full agent table */}
-          <div className="section-title">All Agents ({rows.length})</div>
-          {rows.length === 0 ? (
+          {/* Main metric table */}
+          <div className="section-title">
+            Monthly Performance — {monthLabel}
+          </div>
+
+          {displayAgents.length === 0 ? (
             <div className="empty-state">
-              <h3>No data for this period</h3>
-              <p>No scorecard data exists for the selected filters.</p>
+              <h3>No agents found</h3>
+              <p>No assigned active agents match the current filters.</p>
             </div>
           ) : (
             <div className="table-wrap">
-              <table>
+              <table style={{ fontSize: 12 }}>
                 <thead>
                   <tr>
-                    <th>Agent</th>
-                    <th>Organization</th>
-                    <th>Group</th>
-                    <th>Rating</th>
-                    <th>On Track</th>
-                    <th>Off Track</th>
-                    <th>With Data</th>
+                    <th style={{ minWidth: 150, position: 'sticky', left: 0, background: '#f8f9fb', zIndex: 1 }}>Agent</th>
+                    <th style={{ minWidth: 100 }}>Organization</th>
+                    <th style={{ minWidth: 120 }}>Rating</th>
+                    <th style={{ minWidth: 70, textAlign: 'center' }}>On Track</th>
+                    <th style={{ minWidth: 70, textAlign: 'center' }}>Off Track</th>
+                    <th style={{ minWidth: 70, textAlign: 'center' }}>With Data</th>
+                    {configuredCore.map((m) => (
+                      <th key={m.metric_key} style={{ minWidth: 100, textAlign: 'center' }} title={m.metric_name}>
+                        {m.metric_name}
+                      </th>
+                    ))}
                   </tr>
                 </thead>
                 <tbody>
-                  {rows.map((r) => (
-                    <tr key={r.agent_id}>
-                      <td style={{ fontWeight: 500 }}>{r.agent_name}</td>
-                      <td>{r.organization_name ?? '—'}</td>
-                      <td>{r.external_group_name ?? '—'}</td>
-                      <td><span className={ratingClass(r.rating_label)}>{r.rating_label ?? '—'}</span></td>
-                      <td><span className="badge status-on-track">{r.on_track_count ?? 0}</span></td>
-                      <td><span className="badge status-off-track">{r.off_track_count ?? 0}</span></td>
-                      <td>{r.scoring_metrics_with_data ?? '—'}</td>
-                    </tr>
-                  ))}
+                  {displayAgents.map((agent) => {
+                    const sc = scorecardByAgent[agent.id]
+                    const agentDetail = detailByAgent[agent.id] ?? {}
+                    return (
+                      <tr key={agent.id}>
+                        <td style={{ fontWeight: 600, position: 'sticky', left: 0, background: '#fff', zIndex: 1 }}>
+                          {agent.agent_name}
+                        </td>
+                        <td style={{ color: '#6b7a8d' }}>
+                          {sc?.organization_name ?? '—'}
+                        </td>
+                        <td>
+                          <span className={ratingClass(sc?.rating_label)}>
+                            {sc?.rating_label ?? '—'}
+                          </span>
+                        </td>
+                        <td style={{ textAlign: 'center', color: '#1a6e3a', fontWeight: 600 }}>
+                          {sc?.on_track_count ?? '—'}
+                        </td>
+                        <td style={{ textAlign: 'center', color: '#842029', fontWeight: 600 }}>
+                          {sc?.off_track_count ?? '—'}
+                        </td>
+                        <td style={{ textAlign: 'center' }}>
+                          {sc?.scoring_metrics_with_data ?? '—'}
+                        </td>
+                        {configuredCore.map((m) => (
+                          <MetricCell key={m.metric_key} row={agentDetail[m.metric_key]} />
+                        ))}
+                      </tr>
+                    )
+                  })}
                 </tbody>
               </table>
             </div>
+          )}
+
+          {/* Rollup section */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, margin: '24px 0 8px' }}>
+            <div className="section-title" style={{ margin: 0, borderBottom: 'none', paddingBottom: 0 }}>
+              Rollup Year
+            </div>
+            <select
+              className="filter-select"
+              style={{ height: 30, fontSize: 13, minWidth: 90 }}
+              value={rollupYear}
+              onChange={(e) => setRollupYear(e.target.value)}
+            >
+              {yearOptions.map((y) => <option key={y} value={y}>{y}</option>)}
+            </select>
+            {yearLoading && <span style={{ fontSize: 12, color: '#6b7a8d' }}>Loading…</span>}
+          </div>
+
+          {!yearLoading && displayAgents.length > 0 && (
+            <>
+              {/* Quarterly table */}
+              <div className="section-title">Quarterly Team Summary — {rollupYear}</div>
+              <div className="table-wrap">
+                <table style={{ fontSize: 12 }}>
+                  <thead>
+                    <tr>
+                      <th style={{ minWidth: 150, fontSize: 13, fontWeight: 700 }}>Agent</th>
+                      {QUARTERS.map((q) => (
+                        <th key={q.label} style={{ minWidth: 90, textAlign: 'center', fontSize: 13, fontWeight: 700 }}>
+                          {q.label}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {displayAgents.map((agent) => (
+                      <tr key={agent.id}>
+                        <td style={{ fontWeight: 600, fontSize: 13 }}>{agent.agent_name}</td>
+                        {QUARTERS.map((q) => (
+                          <RollupSummaryCell
+                            key={q.label}
+                            value={computeAgentPeriodRollup(agent.id, q.months, yearDetail, configuredCore)}
+                          />
+                        ))}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Half-year table */}
+              <div className="section-title">Half-Year Team Summary — {rollupYear}</div>
+              <div className="table-wrap">
+                <table style={{ fontSize: 12 }}>
+                  <thead>
+                    <tr>
+                      <th style={{ minWidth: 150, fontSize: 13, fontWeight: 700 }}>Agent</th>
+                      {HALVES.map((h) => (
+                        <th key={h.label} style={{ minWidth: 90, textAlign: 'center', fontSize: 13, fontWeight: 700 }}>
+                          {h.label}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {displayAgents.map((agent) => (
+                      <tr key={agent.id}>
+                        <td style={{ fontWeight: 600, fontSize: 13 }}>{agent.agent_name}</td>
+                        {HALVES.map((h) => (
+                          <RollupSummaryCell
+                            key={h.label}
+                            value={computeAgentPeriodRollup(agent.id, h.months, yearDetail, configuredCore)}
+                          />
+                        ))}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </>
           )}
         </>
       )}

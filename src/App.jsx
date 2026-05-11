@@ -1,7 +1,7 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import Layout from './components/Layout'
 import AgentPerformance from './pages/AgentPerformance'
-import LeaderDashboard from './pages/LeaderDashboard'
+import TeamDashboard from './pages/LeaderDashboard'
 import AttendanceSummary from './pages/AttendanceSummary'
 import AttendanceEntry from './pages/AttendanceEntry'
 import AdminOrganizations from './pages/admin/AdminOrganizations'
@@ -18,7 +18,7 @@ export default function App() {
       <Layout>
         <Routes>
           <Route path="/" element={<AgentPerformance />} />
-          <Route path="/leader-dashboard" element={<LeaderDashboard />} />
+          <Route path="/leader-dashboard" element={<TeamDashboard />} />
           <Route path="/attendance" element={<AttendanceSummary />} />
           <Route path="/attendance/entry" element={<AttendanceEntry />} />
           <Route path="/admin/organizations" element={<AdminOrganizations />} />

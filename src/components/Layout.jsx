@@ -5,7 +5,7 @@ const NAV = [
     group: 'Performance',
     items: [
       { label: 'Agent Performance', to: '/' },
-      { label: 'Leader Dashboard', to: '/leader-dashboard' },
+      { label: 'Team Dashboard', to: '/leader-dashboard' },
     ],
   },
   {
