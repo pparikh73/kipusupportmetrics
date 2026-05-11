@@ -18,14 +18,12 @@ export async function getOrganizations() {
   return data
 }
 
-export async function getGroups(organizationId) {
-  let query = supabase
+export async function getGroups() {
+  const { data, error } = await supabase
     .from('metrics_cfg_external_groups')
-    .select('id, group_key, group_name, organization_id, active, display_order, notes')
+    .select('id, group_key, group_name, active, display_order, notes')
     .eq('active', true)
     .order('display_order')
-  if (organizationId) query = query.eq('organization_id', organizationId)
-  const { data, error } = await query
   if (error) throw error
   return data
 }
@@ -212,7 +210,7 @@ export async function upsertOrganization(row) {
 export async function getAllGroups() {
   const { data, error } = await supabase
     .from('metrics_cfg_external_groups')
-    .select('*, metrics_cfg_organizations(organization_name)')
+    .select('id, group_key, group_name, active, display_order, notes')
     .order('display_order')
   if (error) throw error
   return data

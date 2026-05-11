@@ -1,13 +1,12 @@
 import { useState, useEffect } from 'react'
-import { getAllGroups, upsertGroup, getAllOrganizations, getAgentCountsByGroup } from '../../lib/api'
+import { getAllGroups, upsertGroup, getAgentCountsByGroup } from '../../lib/api'
 import AdminTable from '../../components/AdminTable'
 import Modal from '../../components/Modal'
 
-const EMPTY = { group_key: '', group_name: '', organization_id: '', active: true, display_order: 0, notes: '' }
+const EMPTY = { group_key: '', group_name: '', active: true, display_order: 0, notes: '' }
 
 export default function AdminGroups() {
   const [rows, setRows] = useState([])
-  const [orgs, setOrgs] = useState([])
   const [agentCounts, setAgentCounts] = useState({})
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -16,8 +15,8 @@ export default function AdminGroups() {
 
   const load = () => {
     setLoading(true)
-    Promise.all([getAllGroups(), getAllOrganizations(), getAgentCountsByGroup()])
-      .then(([g, o, counts]) => { setRows(g); setOrgs(o); setAgentCounts(counts) })
+    Promise.all([getAllGroups(), getAgentCountsByGroup()])
+      .then(([g, counts]) => { setRows(g); setAgentCounts(counts) })
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false))
   }
@@ -27,9 +26,7 @@ export default function AdminGroups() {
   const save = async () => {
     setSaving(true)
     try {
-      const payload = { ...editing }
-      delete payload.metrics_cfg_organizations
-      await upsertGroup(payload)
+      await upsertGroup(editing)
       setEditing(null)
       load()
     } catch (e) {
@@ -42,7 +39,6 @@ export default function AdminGroups() {
   const columns = [
     { key: 'group_name', label: 'Group Name' },
     { key: 'group_key', label: 'Key' },
-    { key: 'organization_name', label: 'Organization', render: (r) => r.metrics_cfg_organizations?.organization_name ?? '—' },
     { key: 'assigned_agents', label: 'Assigned Agents', render: (r) => agentCounts[r.id] ?? 0 },
     { key: 'display_order', label: 'Order' },
   ]
@@ -77,13 +73,6 @@ export default function AdminGroups() {
           <div className="form-group" style={{ marginBottom: 12 }}>
             <label className="form-label">Key</label>
             <input className="form-input" value={editing.group_key} onChange={(e) => setEditing({ ...editing, group_key: e.target.value })} />
-          </div>
-          <div className="form-group" style={{ marginBottom: 12 }}>
-            <label className="form-label">Organization</label>
-            <select className="form-select" value={editing.organization_id} onChange={(e) => setEditing({ ...editing, organization_id: e.target.value ? Number(e.target.value) : '' })}>
-              <option value="">Select organization…</option>
-              {orgs.map((o) => <option key={o.id} value={o.id}>{o.organization_name}</option>)}
-            </select>
           </div>
           <div className="form-group" style={{ marginBottom: 12 }}>
             <label className="form-label">Display Order</label>

@@ -50,13 +50,9 @@ export default function AttendanceEntry() {
 
   useEffect(() => {
     getOrganizations().then(setOrgs).catch((e) => setError(e.message))
+    getGroups().then(setGroups).catch((e) => setError(e.message))
     getAttendanceCodes().then(setCodes).catch((e) => setError(e.message))
   }, [])
-
-  useEffect(() => {
-    setGroupId('')
-    getGroups(orgId || undefined).then(setGroups).catch((e) => setError(e.message))
-  }, [orgId])
 
   useEffect(() => {
     getAgents(orgId || undefined, groupId || undefined, { assignedOnly: false }).then(setAgents).catch((e) => setError(e.message))

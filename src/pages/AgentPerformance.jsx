@@ -44,19 +44,13 @@ export default function AgentPerformance() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
-  // Load orgs
+  // Load orgs and groups once (they are independent)
   useEffect(() => {
     getOrganizations().then(setOrgs).catch((e) => setError(e.message))
+    getGroups().then(setGroups).catch((e) => setError(e.message))
   }, [])
 
-  // Load groups when org changes
-  useEffect(() => {
-    setGroupId('')
-    setAgentId('')
-    getGroups(orgId || undefined).then(setGroups).catch((e) => setError(e.message))
-  }, [orgId])
-
-  // Load agents when group or org changes
+  // Load agents when org or group filter changes
   useEffect(() => {
     setAgentId('')
     getAgents(orgId || undefined, groupId || undefined)

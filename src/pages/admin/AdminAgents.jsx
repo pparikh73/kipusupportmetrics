@@ -49,13 +49,9 @@ export default function AdminAgents() {
     }
   }
 
-  // All groups shown in modal — org name shown in parentheses for context
+  // Organization and Group are independent — always show all groups
   const modalGroups = groups
-
-  // Groups available for the group filter dropdown (filtered by org filter)
-  const filterGroups = orgFilter
-    ? groups.filter((g) => g.organization_id === Number(orgFilter))
-    : groups
+  const filterGroups = groups
 
   const displayRows = allRows.filter((r) => {
     if (assignFilter === 'assigned' && !isAssigned(r)) return false
@@ -176,7 +172,7 @@ export default function AdminAgents() {
               <select
                 className="form-select"
                 value={editing.organization_id ?? ''}
-                onChange={(e) => setEditing({ ...editing, organization_id: e.target.value || '', external_group_id: '' })}
+                onChange={(e) => setEditing({ ...editing, organization_id: e.target.value || '' })}
               >
                 <option value="">— Unassigned —</option>
                 {orgs.map((o) => <option key={o.id} value={o.id}>{o.organization_name}</option>)}

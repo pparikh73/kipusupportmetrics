@@ -19,12 +19,8 @@ export default function LeaderDashboard() {
 
   useEffect(() => {
     getOrganizations().then(setOrgs).catch((e) => setError(e.message))
+    getGroups().then(setGroups).catch((e) => setError(e.message))
   }, [])
-
-  useEffect(() => {
-    setGroupId('')
-    getGroups(orgId || undefined).then(setGroups).catch((e) => setError(e.message))
-  }, [orgId])
 
   useEffect(() => {
     setAgentId('')
