@@ -103,6 +103,18 @@ export async function getAgentMetricDetail({ agentId, month }) {
   return data
 }
 
+// All months in a calendar year for an agent — used for quarterly/half-year rollups
+export async function getAgentYearDetail({ agentId, year }) {
+  const { data, error } = await supabase
+    .from('metrics_vw_agent_month_detail')
+    .select('*')
+    .eq('agent_id', agentId)
+    .gte('metric_month', `${year}-01-01`)
+    .lte('metric_month', `${year}-12-31`)
+  if (error) throw error
+  return data
+}
+
 export async function getLeaderScorecards({ month, organizationId, externalGroupId, agentId }) {
   let query = supabase
     .from('metrics_vw_monthly_scorecard')
