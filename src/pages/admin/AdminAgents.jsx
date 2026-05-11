@@ -49,10 +49,8 @@ export default function AdminAgents() {
     }
   }
 
-  // Groups filtered to selected org in the edit modal
-  const modalGroups = editing?.organization_id
-    ? groups.filter((g) => g.organization_id === Number(editing.organization_id))
-    : groups
+  // All groups shown in modal — org name shown in parentheses for context
+  const modalGroups = groups
 
   // Groups available for the group filter dropdown (filtered by org filter)
   const filterGroups = orgFilter
@@ -192,7 +190,11 @@ export default function AdminAgents() {
                 onChange={(e) => setEditing({ ...editing, external_group_id: e.target.value || '' })}
               >
                 <option value="">— Unassigned —</option>
-                {modalGroups.map((g) => <option key={g.id} value={g.id}>{g.group_name}</option>)}
+                {modalGroups.map((g) => (
+                  <option key={g.id} value={g.id}>
+                    {g.group_name}{g.metrics_cfg_organizations?.organization_name ? ` (${g.metrics_cfg_organizations.organization_name})` : ''}
+                  </option>
+                ))}
               </select>
             </div>
           </div>
