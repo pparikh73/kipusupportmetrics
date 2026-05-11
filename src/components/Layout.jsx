@@ -1,4 +1,4 @@
-import { NavLink, useLocation } from 'react-router-dom'
+import { NavLink } from 'react-router-dom'
 
 const NAV = [
   {
@@ -16,22 +16,30 @@ const NAV = [
     ],
   },
   {
-    group: 'Admin',
+    group: 'People & Assignment',
     items: [
       { label: 'Organizations', to: '/admin/organizations' },
       { label: 'Groups', to: '/admin/groups' },
       { label: 'Agents', to: '/admin/agents' },
+    ],
+  },
+  {
+    group: 'Metric Setup',
+    items: [
       { label: 'Metrics', to: '/admin/metrics' },
       { label: 'Targets', to: '/admin/targets' },
       { label: 'Tolerances', to: '/admin/tolerances' },
+    ],
+  },
+  {
+    group: 'Attendance Setup',
+    items: [
       { label: 'Attendance Codes', to: '/admin/attendance-codes' },
     ],
   },
 ]
 
 export default function Layout({ children }) {
-  const location = useLocation()
-
   return (
     <div className="app-shell">
       <nav className="sidebar">

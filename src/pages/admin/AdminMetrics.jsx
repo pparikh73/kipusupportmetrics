@@ -2,6 +2,51 @@ import { useState, useEffect } from 'react'
 import { getAllMetrics, upsertMetric } from '../../lib/api'
 import Modal from '../../components/Modal'
 
+function ActiveBadge({ active }) {
+  return (
+    <span style={{ color: active ? '#1a6e3a' : '#842029', fontWeight: 600, fontSize: 12 }}>
+      {active ? 'Yes' : 'No'}
+    </span>
+  )
+}
+
+function MetricSection({ title, rows, onEdit }) {
+  if (!rows.length) return null
+  return (
+    <>
+      <div className="section-title">{title}</div>
+      <div className="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Metric Name</th>
+              <th>Unit</th>
+              <th>Direction</th>
+              <th>Counts to Rating</th>
+              <th>Visibility Only</th>
+              <th>Active</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((r) => (
+              <tr key={r.id}>
+                <td style={{ fontWeight: 500 }}>{r.metric_name}</td>
+                <td>{r.unit_type}</td>
+                <td>{r.direction_good}</td>
+                <td>{r.counts_toward_rating ? 'Yes' : 'No'}</td>
+                <td>{r.visibility_only ? 'Yes' : 'No'}</td>
+                <td><ActiveBadge active={r.active} /></td>
+                <td><button className="btn btn-sm btn-secondary" onClick={() => onEdit({ ...r })}>Edit</button></td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </>
+  )
+}
+
 export default function AdminMetrics() {
   const [rows, setRows] = useState([])
   const [loading, setLoading] = useState(true)
@@ -32,10 +77,15 @@ export default function AdminMetrics() {
     }
   }
 
+  const coreMetrics = rows.filter((r) => r.active && r.counts_toward_rating && !r.visibility_only)
+  const visibilityMetrics = rows.filter((r) => r.active && r.visibility_only)
+  const inactiveMetrics = rows.filter((r) => !r.active)
+
   return (
     <div className="page">
       <div className="page-header">
         <h1 className="page-title">Metrics</h1>
+        <p className="page-subtitle">Configure which metrics are tracked and scored</p>
       </div>
       {error && <div className="error-msg">{error}</div>}
       <div style={{ marginBottom: 12 }}>
@@ -46,36 +96,11 @@ export default function AdminMetrics() {
         })}>+ Add Metric</button>
       </div>
       {loading ? <div className="loading">Loading...</div> : (
-        <div className="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>Metric Name</th>
-                <th>Key</th>
-                <th>Unit</th>
-                <th>Direction</th>
-                <th>Counts to Rating</th>
-                <th>Visibility Only</th>
-                <th>Active</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((r) => (
-                <tr key={r.id}>
-                  <td style={{ fontWeight: 500 }}>{r.metric_name}</td>
-                  <td style={{ fontSize: 11, color: '#6b7a8d' }}>{r.metric_key}</td>
-                  <td>{r.unit_type}</td>
-                  <td>{r.direction_good}</td>
-                  <td>{r.counts_toward_rating ? 'Yes' : 'No'}</td>
-                  <td>{r.visibility_only ? 'Yes' : 'No'}</td>
-                  <td><span style={{ color: r.active ? '#1a6e3a' : '#842029', fontWeight: 600, fontSize: 12 }}>{r.active ? 'Yes' : 'No'}</span></td>
-                  <td><button className="btn btn-sm btn-secondary" onClick={() => setEditing({ ...r })}>Edit</button></td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <>
+          <MetricSection title="Core Rating Metrics" rows={coreMetrics} onEdit={setEditing} />
+          <MetricSection title="Additional Visibility Metrics" rows={visibilityMetrics} onEdit={setEditing} />
+          <MetricSection title="Inactive Metrics" rows={inactiveMetrics} onEdit={setEditing} />
+        </>
       )}
       {editing && (
         <Modal
