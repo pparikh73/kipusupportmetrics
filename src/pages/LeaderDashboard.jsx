@@ -4,7 +4,7 @@ import {
   getLeaderScorecards, getGroupMonthDetail, getGroupYearDetail,
   getMetrics,
 } from '../lib/api'
-import { formatValue, statusClass, statusLabel, recentMonths } from '../lib/format'
+import { formatValue, statusClass, statusLabel, ratingClass, recentMonths } from '../lib/format'
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 

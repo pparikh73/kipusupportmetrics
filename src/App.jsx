@@ -18,7 +18,7 @@ export default function App() {
       <Layout>
         <Routes>
           <Route path="/" element={<AgentPerformance />} />
-          <Route path="/leader-dashboard" element={<TeamDashboard />} />
+          <Route path="/team-dashboard" element={<TeamDashboard />} />
           <Route path="/attendance" element={<AttendanceSummary />} />
           <Route path="/attendance/entry" element={<AttendanceEntry />} />
           <Route path="/admin/organizations" element={<AdminOrganizations />} />
