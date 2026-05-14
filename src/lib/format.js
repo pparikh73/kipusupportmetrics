@@ -5,10 +5,12 @@ export function formatValue(value, unitType) {
       return `${Number(value).toFixed(1)}%`
     case 'days':
       return `${Number(value).toFixed(2)} days`
+    case 'hours':
+      return `${Number(value).toFixed(2)} hrs`
     case 'count':
       return Math.round(value).toString()
     default:
-      return String(value)
+      return typeof value === 'number' ? Number(value).toFixed(2) : String(value)
   }
 }
 

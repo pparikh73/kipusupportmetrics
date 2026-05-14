@@ -124,6 +124,7 @@ export default function AdminMetrics() {
                 <option value="count">Count</option>
                 <option value="percent">Percent</option>
                 <option value="days">Days</option>
+                <option value="hours">Hours</option>
               </select>
             </div>
             <div className="form-group">
