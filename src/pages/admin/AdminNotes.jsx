@@ -33,7 +33,7 @@ export default function AdminNotes() {
     try {
       await upsertAgentMonthNote({
         agentId: Number(editing.agent_id),
-        noteMonth: editing.note_month,
+        noteMonth: editing.metric_month,
         noteText: editing.note_text,
         createdBy: editing.created_by || 'admin',
       })
@@ -73,7 +73,7 @@ export default function AdminNotes() {
         <div style={{ marginLeft: 'auto' }}>
           <button className="btn btn-primary" onClick={() => setEditing({
             agent_id: agentFilter || '',
-            note_month: monthFilter ? `${monthFilter}-01` : '',
+            metric_month: monthFilter ? `${monthFilter}-01` : '',
             note_text: '',
             created_by: 'admin',
           })}>+ Add Note</button>
@@ -96,7 +96,7 @@ export default function AdminNotes() {
               {rows.map((r) => (
                 <tr key={r.id}>
                   <td style={{ fontWeight: 500 }}>{r.metrics_agents?.agent_name ?? r.agent_id}</td>
-                  <td style={{ fontSize: 12 }}>{r.note_month?.slice(0, 7) ?? '—'}</td>
+                  <td style={{ fontSize: 12 }}>{r.metric_month?.slice(0, 7) ?? '—'}</td>
                   <td style={{ fontSize: 12, maxWidth: 400 }}>{r.note_text}</td>
                   <td style={{ fontSize: 12, color: '#6b7a8d' }}>{r.created_by ?? '—'}</td>
                   <td><button className="btn btn-sm btn-secondary" onClick={() => setEditing({ ...r, metrics_agents: undefined })}>Edit</button></td>
@@ -131,7 +131,7 @@ export default function AdminNotes() {
             </div>
             <div className="form-group">
               <label className="form-label">Month</label>
-              <select className="form-select" value={editing.note_month?.slice(0, 7) ?? ''} onChange={(e) => setEditing({ ...editing, note_month: e.target.value ? `${e.target.value}-01` : '' })}>
+              <select className="form-select" value={editing.metric_month?.slice(0, 7) ?? ''} onChange={(e) => setEditing({ ...editing, metric_month: e.target.value ? `${e.target.value}-01` : '' })}>
                 <option value="">— Select Month —</option>
                 {months.map((m) => <option key={m.value} value={m.value}>{m.label}</option>)}
               </select>

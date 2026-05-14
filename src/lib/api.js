@@ -230,18 +230,18 @@ export async function getAgentMonthNote({ agentId, noteMonth }) {
     .from('metrics_agent_monthly_notes')
     .select('*')
     .eq('agent_id', agentId)
-    .eq('note_month', toDateParam(noteMonth))
+    .eq('metric_month', toDateParam(noteMonth))
     .maybeSingle()
   if (error) throw error
   return data
 }
 
 export async function upsertAgentMonthNote({ agentId, noteMonth, noteText, createdBy }) {
-  const row = { agent_id: agentId, note_month: toDateParam(noteMonth), note_text: noteText }
+  const row = { agent_id: agentId, metric_month: toDateParam(noteMonth), note_text: noteText }
   if (createdBy) row.created_by = createdBy
   const { data, error } = await supabase
     .from('metrics_agent_monthly_notes')
-    .upsert(row, { onConflict: 'agent_id,note_month' })
+    .upsert(row, { onConflict: 'agent_id,metric_month' })
     .select()
     .single()
   if (error) throw error
@@ -252,10 +252,10 @@ export async function getAllNotes({ agentId, month } = {}) {
   let query = supabase
     .from('metrics_agent_monthly_notes')
     .select('*, metrics_agents(agent_name)')
-    .order('note_month', { ascending: false })
+    .order('metric_month', { ascending: false })
     .order('agent_id')
   if (agentId) query = query.eq('agent_id', agentId)
-  if (month)   query = query.eq('note_month', toDateParam(month))
+  if (month)   query = query.eq('metric_month', toDateParam(month))
   const { data, error } = await query
   if (error) throw error
   return data
