@@ -1,14 +1,6 @@
 import { useState, useEffect } from 'react'
-import { getAllMetrics, upsertMetric } from '../../lib/api'
+import { getAllMetricDefinitions, upsertMetricDefinition } from '../../lib/api'
 import Modal from '../../components/Modal'
-
-function ActiveBadge({ active }) {
-  return (
-    <span style={{ color: active ? '#1a6e3a' : '#842029', fontWeight: 600, fontSize: 12 }}>
-      {active ? 'Yes' : 'No'}
-    </span>
-  )
-}
 
 function MetricSection({ title, rows, onEdit }) {
   if (!rows.length) return null
@@ -20,10 +12,11 @@ function MetricSection({ title, rows, onEdit }) {
           <thead>
             <tr>
               <th>Metric Name</th>
+              <th>Key</th>
               <th>Unit</th>
               <th>Direction</th>
-              <th>Counts to Rating</th>
-              <th>Visibility Only</th>
+              <th>Counts to Score</th>
+              <th>Order</th>
               <th>Active</th>
               <th></th>
             </tr>
@@ -32,11 +25,12 @@ function MetricSection({ title, rows, onEdit }) {
             {rows.map((r) => (
               <tr key={r.id}>
                 <td style={{ fontWeight: 500 }}>{r.metric_name}</td>
+                <td style={{ fontSize: 12, color: '#6b7a8d', fontFamily: 'monospace' }}>{r.metric_key}</td>
                 <td>{r.unit_type}</td>
-                <td>{r.direction_good}</td>
-                <td>{r.counts_toward_rating ? 'Yes' : 'No'}</td>
-                <td>{r.visibility_only ? 'Yes' : 'No'}</td>
-                <td><ActiveBadge active={r.active} /></td>
+                <td>{r.direction_good === 'at_or_above' ? '↑ At or Above' : r.direction_good === 'at_or_below' ? '↓ At or Below' : r.direction_good}</td>
+                <td>{r.counts_toward_score ? 'Yes' : 'No'}</td>
+                <td>{r.display_order}</td>
+                <td><span style={{ color: r.active ? '#1a6e3a' : '#842029', fontWeight: 600, fontSize: 12 }}>{r.active ? 'Yes' : 'No'}</span></td>
                 <td><button className="btn btn-sm btn-secondary" onClick={() => onEdit({ ...r })}>Edit</button></td>
               </tr>
             ))}
@@ -48,15 +42,15 @@ function MetricSection({ title, rows, onEdit }) {
 }
 
 export default function AdminMetrics() {
-  const [rows, setRows] = useState([])
+  const [rows, setRows]       = useState([])
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
+  const [error, setError]     = useState('')
   const [editing, setEditing] = useState(null)
-  const [saving, setSaving] = useState(false)
+  const [saving, setSaving]   = useState(false)
 
   const load = () => {
     setLoading(true)
-    getAllMetrics()
+    getAllMetricDefinitions()
       .then(setRows)
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false))
@@ -67,7 +61,7 @@ export default function AdminMetrics() {
   const save = async () => {
     setSaving(true)
     try {
-      await upsertMetric(editing)
+      await upsertMetricDefinition(editing)
       setEditing(null)
       load()
     } catch (e) {
@@ -77,9 +71,9 @@ export default function AdminMetrics() {
     }
   }
 
-  const coreMetrics = rows.filter((r) => r.active && r.counts_toward_rating && !r.visibility_only)
-  const visibilityMetrics = rows.filter((r) => r.active && r.visibility_only)
-  const inactiveMetrics = rows.filter((r) => !r.active)
+  const scoredMetrics    = rows.filter((r) => r.active && r.counts_toward_score)
+  const additionalMetrics = rows.filter((r) => r.active && !r.counts_toward_score)
+  const inactiveMetrics  = rows.filter((r) => !r.active)
 
   return (
     <div className="page">
@@ -90,15 +84,15 @@ export default function AdminMetrics() {
       {error && <div className="error-msg">{error}</div>}
       <div style={{ marginBottom: 12 }}>
         <button className="btn btn-primary" onClick={() => setEditing({
-          metric_key: '', metric_name: '', description: '', unit_type: 'count',
-          direction_good: 'higher', active: true, display_order: 0,
-          counts_toward_rating: true, visibility_only: false, source_behavior: '',
+          metric_key: '', metric_name: '', unit_type: 'count',
+          direction_good: 'at_or_above', counts_toward_score: true,
+          active: true, display_order: 0,
         })}>+ Add Metric</button>
       </div>
       {loading ? <div className="loading">Loading...</div> : (
         <>
-          <MetricSection title="Core Rating Metrics" rows={coreMetrics} onEdit={setEditing} />
-          <MetricSection title="Additional Visibility Metrics" rows={visibilityMetrics} onEdit={setEditing} />
+          <MetricSection title="Scored Metrics" rows={scoredMetrics} onEdit={setEditing} />
+          <MetricSection title="Additional Metrics" rows={additionalMetrics} onEdit={setEditing} />
           <MetricSection title="Inactive Metrics" rows={inactiveMetrics} onEdit={setEditing} />
         </>
       )}
@@ -120,7 +114,7 @@ export default function AdminMetrics() {
             </div>
             <div className="form-group">
               <label className="form-label">Key</label>
-              <input className="form-input" value={editing.metric_key} onChange={(e) => setEditing({ ...editing, metric_key: e.target.value })} />
+              <input className="form-input" value={editing.metric_key} onChange={(e) => setEditing({ ...editing, metric_key: e.target.value })} placeholder="snake_case_key" />
             </div>
           </div>
           <div className="form-row">
@@ -135,14 +129,10 @@ export default function AdminMetrics() {
             <div className="form-group">
               <label className="form-label">Direction Good</label>
               <select className="form-select" value={editing.direction_good} onChange={(e) => setEditing({ ...editing, direction_good: e.target.value })}>
-                <option value="higher">Higher</option>
-                <option value="lower">Lower</option>
+                <option value="at_or_above">↑ At or Above goal</option>
+                <option value="at_or_below">↓ At or Below goal</option>
               </select>
             </div>
-          </div>
-          <div className="form-group" style={{ marginBottom: 12 }}>
-            <label className="form-label">Description</label>
-            <textarea className="form-textarea" rows={2} value={editing.description ?? ''} onChange={(e) => setEditing({ ...editing, description: e.target.value })} />
           </div>
           <div className="form-group" style={{ marginBottom: 12 }}>
             <label className="form-label">Display Order</label>
@@ -150,15 +140,11 @@ export default function AdminMetrics() {
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 4 }}>
             <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, cursor: 'pointer' }}>
-              <input type="checkbox" checked={editing.counts_toward_rating} onChange={(e) => setEditing({ ...editing, counts_toward_rating: e.target.checked })} />
-              Counts Toward Rating
+              <input type="checkbox" checked={!!editing.counts_toward_score} onChange={(e) => setEditing({ ...editing, counts_toward_score: e.target.checked })} />
+              Counts Toward Score
             </label>
             <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, cursor: 'pointer' }}>
-              <input type="checkbox" checked={editing.visibility_only} onChange={(e) => setEditing({ ...editing, visibility_only: e.target.checked })} />
-              Visibility Only
-            </label>
-            <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, cursor: 'pointer' }}>
-              <input type="checkbox" checked={editing.active} onChange={(e) => setEditing({ ...editing, active: e.target.checked })} />
+              <input type="checkbox" checked={!!editing.active} onChange={(e) => setEditing({ ...editing, active: e.target.checked })} />
               Active
             </label>
           </div>

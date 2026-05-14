@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useCallback } from 'react'
 import {
-  getOrganizations, getGroups, getAgents,
+  getTeams, getAgents,
   getAttendanceCodes, getAttendanceDaily,
   upsertAttendance, deleteAttendance,
 } from '../lib/api'
@@ -92,13 +92,11 @@ function colHeaderBg(day, iso, holidayIsos) {
 export default function AttendanceEntry() {
   const months = recentMonths(18)
 
-  const [orgs, setOrgs]     = useState([])
-  const [groups, setGroups] = useState([])
+  const [teams, setTeams]   = useState([])
   const [agents, setAgents] = useState([])
   const [codes, setCodes]   = useState([])
 
-  const [month, setMonth]   = useState(currentMonth())
-  const [orgId, setOrgId]   = useState('')
+  const [month, setMonth]     = useState(currentMonth())
   const [groupId, setGroupId] = useState('')
 
   const [savedMap, setSavedMap]     = useState({})  // agentId:dateISO → db row
@@ -154,16 +152,15 @@ export default function AttendanceEntry() {
   // ── Data loading ────────────────────────────────────────────────────────────
 
   useEffect(() => {
-    getOrganizations().then(setOrgs).catch((e) => setError(e.message))
-    getGroups().then(setGroups).catch((e) => setError(e.message))
+    getTeams().then(setTeams).catch((e) => setError(e.message))
     getAttendanceCodes().then(setCodes).catch((e) => setError(e.message))
   }, [])
 
   useEffect(() => {
-    getAgents(orgId || undefined, groupId || undefined, { assignedOnly: true })
+    getAgents({ groupId: groupId || undefined })
       .then(setAgents)
       .catch((e) => setError(e.message))
-  }, [orgId, groupId])
+  }, [groupId])
 
   const loadAttendance = useCallback(async () => {
     if (!month) return
@@ -278,8 +275,6 @@ export default function AttendanceEntry() {
           toUpsert.push({
             attendance_date: dateISO,
             agent_id: agentId,
-            organization_id: agent?.organization_id ?? null,
-            external_group_id: agent?.external_group_id ?? null,
             attendance_code_id: val.codeId,
             source: 'manual',
             notes: val.notes || null,
@@ -354,17 +349,10 @@ export default function AttendanceEntry() {
           </select>
         </div>
         <div className="filter-group">
-          <label className="filter-label">Organization</label>
-          <select className="filter-select" value={orgId} onChange={(e) => setOrgId(e.target.value)}>
-            <option value="">All Organizations</option>
-            {orgs.map((o) => <option key={o.id} value={o.id}>{o.organization_name}</option>)}
-          </select>
-        </div>
-        <div className="filter-group">
-          <label className="filter-label">Group</label>
+          <label className="filter-label">Team</label>
           <select className="filter-select" value={groupId} onChange={(e) => setGroupId(e.target.value)}>
-            <option value="">All Groups</option>
-            {groups.map((g) => <option key={g.id} value={g.id}>{g.group_name}</option>)}
+            <option value="">All Teams</option>
+            {teams.map((t) => <option key={t.id} value={t.id}>{t.group_name}</option>)}
           </select>
         </div>
       </div>

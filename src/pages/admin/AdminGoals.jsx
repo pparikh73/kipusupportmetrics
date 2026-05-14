@@ -1,0 +1,193 @@
+import { useState, useEffect, useMemo } from 'react'
+import { getAllGroupGoals, upsertGroupGoal, getAllTeams, getAllMetricDefinitions } from '../../lib/api'
+import Modal from '../../components/Modal'
+
+export default function AdminGoals() {
+  const [goals, setGoals]     = useState([])
+  const [teams, setTeams]     = useState([])
+  const [metrics, setMetrics] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError]     = useState('')
+  const [editing, setEditing] = useState(null)
+  const [saving, setSaving]   = useState(false)
+
+  const [teamFilter, setTeamFilter] = useState('')
+
+  const load = () => {
+    setLoading(true)
+    Promise.all([getAllGroupGoals(), getAllTeams(), getAllMetricDefinitions()])
+      .then(([g, t, m]) => { setGoals(g); setTeams(t); setMetrics(m) })
+      .catch((e) => setError(e.message))
+      .finally(() => setLoading(false))
+  }
+
+  useEffect(() => { load() }, [])
+
+  const save = async () => {
+    setSaving(true)
+    try {
+      const payload = { ...editing }
+      payload.group_id = Number(payload.group_id)
+      payload.metric_id = Number(payload.metric_id)
+      payload.goal_value = payload.goal_value !== '' ? Number(payload.goal_value) : null
+      payload.tolerance_value = payload.tolerance_value !== '' ? Number(payload.tolerance_value) : null
+      if (payload.effective_start_month === '') payload.effective_start_month = null
+      if (payload.effective_end_month === '')   payload.effective_end_month = null
+      await upsertGroupGoal(payload)
+      setEditing(null)
+      load()
+    } catch (e) {
+      setError(e.message)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const activeMetrics = metrics.filter((m) => m.active)
+
+  const displayGoals = teamFilter
+    ? goals.filter((g) => String(g.group_id) === teamFilter)
+    : goals
+
+  // Group goals by team for display
+  const goalsByTeam = useMemo(() => {
+    const map = {}
+    displayGoals.forEach((g) => {
+      const teamName = g.metrics_groups?.group_name ?? `Team ${g.group_id}`
+      if (!map[teamName]) map[teamName] = []
+      map[teamName].push(g)
+    })
+    return map
+  }, [displayGoals])
+
+  return (
+    <div className="page">
+      <div className="page-header">
+        <h1 className="page-title">Goals</h1>
+        <p className="page-subtitle">Set metric goals and tolerances per team</p>
+      </div>
+
+      {error && <div className="error-msg">{error}</div>}
+
+      <div className="filter-bar" style={{ marginBottom: 12 }}>
+        <div className="filter-group">
+          <label className="filter-label">Team</label>
+          <select className="filter-select" value={teamFilter} onChange={(e) => setTeamFilter(e.target.value)}>
+            <option value="">All Teams</option>
+            {teams.map((t) => <option key={t.id} value={t.id}>{t.group_name}</option>)}
+          </select>
+        </div>
+        <div style={{ marginLeft: 'auto' }}>
+          <button className="btn btn-primary" onClick={() => setEditing({
+            group_id: teamFilter || '',
+            metric_id: '',
+            goal_value: '',
+            tolerance_value: '',
+            effective_start_month: '',
+            effective_end_month: '',
+            active: true,
+          })}>+ Add Goal</button>
+        </div>
+      </div>
+
+      {loading ? <div className="loading">Loading...</div> : (
+        Object.keys(goalsByTeam).length === 0 ? (
+          <div className="empty-state">
+            <h3>No goals found</h3>
+            <p>Add a goal to configure metric targets for a team.</p>
+          </div>
+        ) : (
+          Object.entries(goalsByTeam).map(([teamName, teamGoals]) => (
+            <div key={teamName}>
+              <div className="section-title">{teamName}</div>
+              <div className="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Metric</th>
+                      <th>Unit</th>
+                      <th>Goal Value</th>
+                      <th>Tolerance</th>
+                      <th>Start Month</th>
+                      <th>End Month</th>
+                      <th>Active</th>
+                      <th></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {teamGoals.map((r) => (
+                      <tr key={r.id}>
+                        <td style={{ fontWeight: 500 }}>{r.metrics_definitions?.metric_name ?? r.metric_id}</td>
+                        <td style={{ fontSize: 12, color: '#6b7a8d' }}>{r.metrics_definitions?.unit_type ?? '—'}</td>
+                        <td>{r.goal_value ?? '—'}</td>
+                        <td>{r.tolerance_value != null ? `±${r.tolerance_value}` : '—'}</td>
+                        <td style={{ fontSize: 12 }}>{r.effective_start_month ?? '—'}</td>
+                        <td style={{ fontSize: 12 }}>{r.effective_end_month ?? '—'}</td>
+                        <td><span style={{ color: r.active ? '#1a6e3a' : '#842029', fontWeight: 600, fontSize: 12 }}>{r.active ? 'Yes' : 'No'}</span></td>
+                        <td><button className="btn btn-sm btn-secondary" onClick={() => setEditing({ ...r, metrics_groups: undefined, metrics_definitions: undefined })}>Edit</button></td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          ))
+        )
+      )}
+
+      {editing && (
+        <Modal
+          title={editing.id ? 'Edit Goal' : 'Add Goal'}
+          onClose={() => setEditing(null)}
+          footer={
+            <>
+              <button className="btn btn-secondary" onClick={() => setEditing(null)}>Cancel</button>
+              <button className="btn btn-primary" onClick={save} disabled={saving}>{saving ? 'Saving…' : 'Save'}</button>
+            </>
+          }
+        >
+          <div className="form-row">
+            <div className="form-group">
+              <label className="form-label">Team</label>
+              <select className="form-select" value={editing.group_id ?? ''} onChange={(e) => setEditing({ ...editing, group_id: e.target.value })}>
+                <option value="">— Select Team —</option>
+                {teams.map((t) => <option key={t.id} value={t.id}>{t.group_name}</option>)}
+              </select>
+            </div>
+            <div className="form-group">
+              <label className="form-label">Metric</label>
+              <select className="form-select" value={editing.metric_id ?? ''} onChange={(e) => setEditing({ ...editing, metric_id: e.target.value })}>
+                <option value="">— Select Metric —</option>
+                {activeMetrics.map((m) => <option key={m.id} value={m.id}>{m.metric_name}</option>)}
+              </select>
+            </div>
+          </div>
+          <div className="form-row">
+            <div className="form-group">
+              <label className="form-label">Goal Value</label>
+              <input className="form-input" type="number" step="any" value={editing.goal_value ?? ''} onChange={(e) => setEditing({ ...editing, goal_value: e.target.value })} />
+            </div>
+            <div className="form-group">
+              <label className="form-label">Tolerance (±)</label>
+              <input className="form-input" type="number" step="any" value={editing.tolerance_value ?? ''} onChange={(e) => setEditing({ ...editing, tolerance_value: e.target.value })} placeholder="Optional" />
+            </div>
+          </div>
+          <div className="form-row">
+            <div className="form-group">
+              <label className="form-label">Start Month (YYYY-MM)</label>
+              <input className="form-input" placeholder="2024-01" value={editing.effective_start_month ?? ''} onChange={(e) => setEditing({ ...editing, effective_start_month: e.target.value || null })} />
+            </div>
+            <div className="form-group">
+              <label className="form-label">End Month (YYYY-MM)</label>
+              <input className="form-input" placeholder="Leave blank if current" value={editing.effective_end_month ?? ''} onChange={(e) => setEditing({ ...editing, effective_end_month: e.target.value || null })} />
+            </div>
+          </div>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, cursor: 'pointer', marginTop: 8 }}>
+            <input type="checkbox" checked={!!editing.active} onChange={(e) => setEditing({ ...editing, active: e.target.checked })} />
+            Active
+          </label>
+        </Modal>
+      )}
+    </div>
+  )
+}

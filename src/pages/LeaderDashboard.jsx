@@ -1,8 +1,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import {
-  getOrganizations, getGroups, getAgents,
-  getLeaderScorecards, getGroupMonthDetail, getGroupYearDetail,
-  getMetrics,
+  getTeams, getAgents,
+  getMetricDefinitions, getScorecard, getScorecardYear, getSummary,
 } from '../lib/api'
 import { formatValue, statusClass, statusLabel, ratingClass, recentMonths } from '../lib/format'
 
@@ -41,15 +40,14 @@ function computePeriodActual(rows, unitType) {
 
 function deriveStatus(actual, refRow) {
   if (actual == null || !refRow) return 'no_data'
-  const { target_value, tolerance_value, direction_good } = refRow
-  if (target_value == null) return 'no_target'
+  const { goal_value, tolerance_value, direction_good } = refRow
+  if (goal_value == null) return 'no_target'
   const tol = tolerance_value ?? 0
-  if (direction_good === 'higher') return actual >= target_value - tol ? 'on_track' : 'off_track'
-  if (direction_good === 'lower')  return actual <= target_value + tol ? 'on_track' : 'off_track'
+  if (direction_good === 'at_or_above') return actual >= goal_value - tol ? 'on_track' : 'off_track'
+  if (direction_good === 'at_or_below') return actual <= goal_value + tol ? 'on_track' : 'off_track'
   return 'no_target'
 }
 
-// Returns { [metricKey]: { actual, status, unitType } } for an agent/period
 function computeAgentPeriodMetrics(agentId, periodMonths, yearDetail, configuredCore) {
   const agentRows = yearDetail.filter((r) => r.agent_id === agentId)
   const result = {}
@@ -58,7 +56,10 @@ function computeAgentPeriodMetrics(agentId, periodMonths, yearDetail, configured
       (r) => r.metric_key === metric.metric_key && periodMonths.includes(metricMonthNum(r.metric_month))
     )
     const dataRows = metricRows.filter((r) => r.actual_value != null)
-    if (!dataRows.length) { result[metric.metric_key] = { actual: null, status: 'no_data', unitType: metric.unit_type }; return }
+    if (!dataRows.length) {
+      result[metric.metric_key] = { actual: null, status: 'no_data', unitType: metric.unit_type }
+      return
+    }
     const refRow = [...dataRows].sort((a, b) => b.metric_month.localeCompare(a.metric_month))[0]
     const actual = computePeriodActual(dataRows, metric.unit_type)
     result[metric.metric_key] = { actual, status: deriveStatus(actual, refRow), unitType: metric.unit_type }
@@ -104,19 +105,17 @@ export default function TeamDashboard() {
   const monthOptions = recentMonths(24)
   const yearOptions = getYearOptions()
 
-  const [orgs, setOrgs]     = useState([])
-  const [groups, setGroups] = useState([])
+  const [teams, setTeams] = useState([])
   const [agents, setAgents] = useState([])
-  const [configuredMetrics, setConfiguredMetrics] = useState([])
+  const [metricDefs, setMetricDefs] = useState([])
 
-  const [orgId, setOrgId]     = useState('')
-  const [groupId, setGroupId] = useState('')
-  const [search, setSearch]   = useState('')
-  const [month, setMonth]     = useState(monthOptions[0]?.value ?? '')
+  const [teamId, setTeamId] = useState('')
+  const [search, setSearch]  = useState('')
+  const [month, setMonth]    = useState(monthOptions[0]?.value ?? '')
   const [rollupYear, setRollupYear] = useState(String(new Date().getFullYear()))
 
-  const [scorecards, setScorecards]   = useState([])
   const [monthDetail, setMonthDetail] = useState([])
+  const [summaries, setSummaries]     = useState([])
   const [yearDetail, setYearDetail]   = useState([])
 
   const [loading, setLoading]         = useState(false)
@@ -125,58 +124,53 @@ export default function TeamDashboard() {
 
   // Load reference data once
   useEffect(() => {
-    getOrganizations().then(setOrgs).catch((e) => setError(e.message))
-    getMetrics()
-      .then((all) => setConfiguredMetrics(all.filter((m) => m.active)))
-      .catch((e) => setError(e.message))
-    getGroups()
-      .then((g) => {
-        setGroups(g)
-        if (g.length > 0) setGroupId(String(g[0].id)) // default to first group
+    Promise.all([getTeams(), getMetricDefinitions()])
+      .then(([t, m]) => {
+        setTeams(t)
+        setMetricDefs(m)
+        if (t.length > 0) setTeamId(String(t[0].id))
       })
       .catch((e) => setError(e.message))
   }, [])
 
-  // Load agents when org/group changes
+  // Reload agents when team changes
   useEffect(() => {
-    if (!groupId) return
-    getAgents(orgId || undefined, groupId ? Number(groupId) : undefined)
+    if (!teamId) { setAgents([]); return }
+    getAgents({ groupId: teamId })
       .then(setAgents)
       .catch((e) => setError(e.message))
-  }, [orgId, groupId])
+  }, [teamId])
 
-  // Derived agent IDs — stable reference changes only when agents array changes
   const agentIds = useMemo(() => agents.map((a) => a.id), [agents])
 
-  // Load monthly data when agents or month changes
+  // Load monthly data when agentIds / month changes
   useEffect(() => {
-    if (!agentIds.length || !month) { setScorecards([]); setMonthDetail([]); return }
+    if (!agentIds.length || !month) { setMonthDetail([]); setSummaries([]); return }
     setLoading(true)
     setError('')
     Promise.all([
-      getLeaderScorecards({ month, externalGroupId: groupId ? Number(groupId) : undefined }),
-      getGroupMonthDetail({ month, agentIds }),
+      getScorecard({ agentIds, month }),
+      getSummary({ groupId: teamId ? Number(teamId) : undefined, month }),
     ])
-      .then(([sc, det]) => { setScorecards(sc); setMonthDetail(det) })
+      .then(([det, sumRows]) => { setMonthDetail(det); setSummaries(sumRows) })
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false))
-  }, [agentIds, month])
+  }, [agentIds, month, teamId])
 
-  // Load year data when agents or rollup year changes
+  // Load year data when agentIds / rollupYear changes
   useEffect(() => {
     if (!agentIds.length || !rollupYear) { setYearDetail([]); return }
     setYearLoading(true)
-    getGroupYearDetail({ year: rollupYear, agentIds })
+    getScorecardYear({ year: rollupYear, agentIds })
       .then(setYearDetail)
       .catch((e) => setError(e.message))
       .finally(() => setYearLoading(false))
   }, [agentIds, rollupYear])
 
-  // ── Derived data ────────────────────────────────────────────────────────────
+  // ── Derived data ─────────────────────────────────────────────────────────────
 
-  const configuredCore = configuredMetrics.filter((m) => m.counts_toward_rating && !m.visibility_only)
+  const configuredCore = metricDefs.filter((m) => m.counts_toward_score)
 
-  // Lookup: agentId → metricKey → detail row
   const detailByAgent = useMemo(() => {
     const map = {}
     monthDetail.forEach((r) => {
@@ -186,20 +180,20 @@ export default function TeamDashboard() {
     return map
   }, [monthDetail])
 
-  // Filtered and searched agent list
   const displayAgents = agents.filter((a) =>
     !search || a.agent_name.toLowerCase().includes(search.toLowerCase())
   )
 
-  // Summary stats
-  const selectedGroup = groups.find((g) => String(g.id) === groupId)
-  const ratingDist = scorecards.reduce((acc, r) => {
-    const lbl = r.rating_label ?? 'Unknown'
+  const selectedTeam = teams.find((t) => String(t.id) === teamId)
+
+  const ratingDist = summaries.reduce((acc, r) => {
+    const lbl = r.rating_label ?? r.score_label ?? 'Unknown'
     acc[lbl] = (acc[lbl] ?? 0) + 1
     return acc
   }, {})
-  const avgOnTrack = scorecards.length
-    ? (scorecards.reduce((s, r) => s + (r.on_track_count ?? 0), 0) / scorecards.length).toFixed(1)
+
+  const avgOnTrack = summaries.length
+    ? (summaries.reduce((s, r) => s + (r.on_track_count ?? 0), 0) / summaries.length).toFixed(1)
     : '—'
 
   const monthLabel = monthOptions.find((m) => m.value === month)?.label ?? month
@@ -222,17 +216,10 @@ export default function TeamDashboard() {
           </select>
         </div>
         <div className="filter-group">
-          <label className="filter-label">Organization</label>
-          <select className="filter-select" value={orgId} onChange={(e) => setOrgId(e.target.value)}>
-            <option value="">All Organizations</option>
-            {orgs.map((o) => <option key={o.id} value={o.id}>{o.organization_name}</option>)}
-          </select>
-        </div>
-        <div className="filter-group">
-          <label className="filter-label">Group</label>
-          <select className="filter-select" value={groupId} onChange={(e) => setGroupId(e.target.value)}>
-            <option value="">Select Group</option>
-            {groups.map((g) => <option key={g.id} value={g.id}>{g.group_name}</option>)}
+          <label className="filter-label">Team</label>
+          <select className="filter-select" value={teamId} onChange={(e) => setTeamId(e.target.value)}>
+            <option value="">Select Team</option>
+            {teams.map((t) => <option key={t.id} value={t.id}>{t.group_name}</option>)}
           </select>
         </div>
         <div className="filter-group">
@@ -247,22 +234,22 @@ export default function TeamDashboard() {
         </div>
       </div>
 
-      {!groupId && (
+      {!teamId && (
         <div className="empty-state">
-          <h3>Select a group to view team performance</h3>
+          <h3>Select a team to view performance</h3>
         </div>
       )}
 
-      {groupId && loading && <div className="loading">Loading...</div>}
+      {teamId && loading && <div className="loading">Loading...</div>}
 
-      {groupId && !loading && (
+      {teamId && !loading && (
         <>
           {/* Summary cards */}
           <div className="cards-row">
             <div className="stat-card">
-              <div className="stat-label">Group</div>
+              <div className="stat-label">Team</div>
               <div className="stat-value" style={{ fontSize: 16, marginTop: 4, color: '#1a1a2e' }}>
-                {selectedGroup?.group_name ?? '—'}
+                {selectedTeam?.group_name ?? '—'}
               </div>
               <div className="stat-sub">{monthLabel}</div>
             </div>
@@ -287,10 +274,8 @@ export default function TeamDashboard() {
             ))}
           </div>
 
-          {/* Main metric table */}
-          <div className="section-title">
-            Monthly Performance — {monthLabel}
-          </div>
+          {/* Monthly metrics table */}
+          <div className="section-title">Monthly Performance — {monthLabel}</div>
 
           {displayAgents.length === 0 ? (
             <div className="empty-state">
@@ -431,3 +416,4 @@ export default function TeamDashboard() {
     </div>
   )
 }
+

@@ -1,24 +1,20 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import {
-  getOrganizations, getGroups, getAgents,
-  getAgentMetricDetail, getAgentScorecard,
-  getAgentMonthNote, upsertAgentMonthNote,
-  getMetrics, getAgentYearDetail,
+  getTeams, getAgents,
+  getMetricDefinitions, getScorecard, getScorecardYear,
+  getSummary, getAgentMonthNote, upsertAgentMonthNote,
 } from '../lib/api'
-import {
-  formatValue, formatTarget, formatTolerance,
-  statusLabel, statusClass, ratingClass,
-} from '../lib/format'
+import { formatValue, statusLabel, statusClass, ratingClass } from '../lib/format'
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
 const MONTH_OPTIONS = [
-  { value: '01', label: 'January' }, { value: '02', label: 'February' },
-  { value: '03', label: 'March' },   { value: '04', label: 'April' },
-  { value: '05', label: 'May' },     { value: '06', label: 'June' },
-  { value: '07', label: 'July' },    { value: '08', label: 'August' },
+  { value: '01', label: 'January' },  { value: '02', label: 'February' },
+  { value: '03', label: 'March' },    { value: '04', label: 'April' },
+  { value: '05', label: 'May' },      { value: '06', label: 'June' },
+  { value: '07', label: 'July' },     { value: '08', label: 'August' },
   { value: '09', label: 'September' },{ value: '10', label: 'October' },
-  { value: '11', label: 'November' },{ value: '12', label: 'December' },
+  { value: '11', label: 'November' }, { value: '12', label: 'December' },
 ]
 
 function getYearOptions() {
@@ -43,7 +39,6 @@ const HALVES = [
 // ── Rollup helpers ────────────────────────────────────────────────────────────
 
 function metricMonthNum(metricMonth) {
-  // metricMonth is YYYY-MM-DD from Supabase
   return parseInt(metricMonth.slice(5, 7), 10)
 }
 
@@ -54,31 +49,48 @@ function computePeriodActual(rows, unitType) {
   return unitType === 'count' ? sum : sum / withData.length
 }
 
-// Uses the view's refRow directly so direction/target/tolerance all come from
-// the same source that Supabase uses — avoids mismatches with config values.
+// Uses direction_good values: 'at_or_above' | 'at_or_below'
 function deriveStatus(actual, refRow) {
-  if (actual == null) return 'no_data'
-  if (!refRow) return 'no_data'
-  const { target_value, tolerance_value, direction_good } = refRow
-  if (target_value == null) return 'no_target'
+  if (actual == null || !refRow) return 'no_data'
+  const { goal_value, tolerance_value, direction_good } = refRow
+  if (goal_value == null) return 'no_target'
   const tol = tolerance_value ?? 0
-  if (direction_good === 'higher') return actual >= target_value - tol ? 'on_track' : 'off_track'
-  if (direction_good === 'lower')  return actual <= target_value + tol ? 'on_track' : 'off_track'
+  if (direction_good === 'at_or_above') return actual >= goal_value - tol ? 'on_track' : 'off_track'
+  if (direction_good === 'at_or_below') return actual <= goal_value + tol ? 'on_track' : 'off_track'
   return 'no_target'
+}
+
+// Ensure all configured metrics show even when view returns no row for that metric
+function mergeMetrics(configuredList, viewRows) {
+  return configuredList.map((metric) => {
+    const dataRow = viewRows.find((r) => r.metric_key === metric.metric_key)
+    if (dataRow) return dataRow
+    return {
+      metric_key: metric.metric_key,
+      metric_name: metric.metric_name,
+      unit_type: metric.unit_type,
+      direction_good: metric.direction_good,
+      counts_toward_score: metric.counts_toward_score,
+      actual_value: null,
+      goal_value: null,
+      tolerance_value: null,
+      on_track: null,
+      metric_status: 'no_data',
+    }
+  })
 }
 
 // ── Sub-components ────────────────────────────────────────────────────────────
 
-function MonthlyMetricRow({ row }) {
+function MetricRow({ row }) {
   const sc = statusClass(row.metric_status)
   return (
     <tr>
-      <td>{row.metric_name}</td>
+      <td style={{ fontWeight: 500 }}>{row.metric_name}</td>
       <td>{formatValue(row.actual_value, row.unit_type)}</td>
-      <td>{formatTarget(row.target_value, row.unit_type)}</td>
-      <td>{formatTolerance(row.tolerance_value, row.tolerance_unit, row.unit_type)}</td>
+      <td>{row.goal_value != null ? formatValue(row.goal_value, row.unit_type) : '—'}</td>
+      <td>{row.tolerance_value != null ? `±${row.tolerance_value}` : '—'}</td>
       <td><span className={`badge ${sc}`}>{statusLabel(row.metric_status)}</span></td>
-      <td style={{ fontSize: 11, color: '#6b7a8d' }}>{row.report_name ?? '—'}</td>
     </tr>
   )
 }
@@ -102,7 +114,6 @@ function RollupTable({ title, periods, configuredMetrics, yearDetail }) {
           <tbody>
             {configuredMetrics.map((metric) => {
               const metricRows = yearDetail.filter((r) => r.metric_key === metric.metric_key)
-              // Most recent month with data is the target/tolerance reference
               const refRow = [...metricRows]
                 .filter((r) => r.actual_value != null)
                 .sort((a, b) => b.metric_month.localeCompare(a.metric_month))[0]
@@ -140,54 +151,28 @@ function RollupTable({ title, periods, configuredMetrics, yearDetail }) {
   )
 }
 
-// ── Merge configured metrics with view data ───────────────────────────────────
-
-function mergeMetrics(configuredList, viewRows) {
-  return configuredList.map((metric) => {
-    const dataRow = viewRows.find((r) => r.metric_key === metric.metric_key)
-    if (dataRow) return dataRow
-    return {
-      metric_key: metric.metric_key,
-      metric_name: metric.metric_name,
-      unit_type: metric.unit_type,
-      direction_good: metric.direction_good,
-      counts_toward_rating: metric.counts_toward_rating,
-      visibility_only: metric.visibility_only,
-      actual_value: null,
-      target_value: null,
-      tolerance_value: null,
-      tolerance_unit: null,
-      on_track: null,
-      metric_status: 'no_data',
-      report_name: null,
-    }
-  })
-}
-
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export default function AgentPerformance() {
   const now = new Date()
   const yearOptions = getYearOptions()
 
-  const [orgs, setOrgs]       = useState([])
-  const [groups, setGroups]   = useState([])
-  const [agents, setAgents]   = useState([])
-  const [configuredMetrics, setConfiguredMetrics] = useState([])
+  const [teams, setTeams]   = useState([])
+  const [agents, setAgents] = useState([])
+  const [metricDefs, setMetricDefs] = useState([])
 
-  const [orgId, setOrgId]     = useState('')
-  const [groupId, setGroupId] = useState('')
+  const [teamId, setTeamId]   = useState('')
   const [agentId, setAgentId] = useState('')
   const [year, setYear]       = useState(String(now.getFullYear()))
   const [selMonth, setSelMonth] = useState(String(now.getMonth() + 1).padStart(2, '0'))
 
-  const [scorecard, setScorecard]   = useState(null)
   const [monthDetail, setMonthDetail] = useState([])
+  const [summary, setSummary]         = useState(null)
   const [yearDetail, setYearDetail]   = useState([])
-  const [note, setNote]             = useState('')
-  const [savedNote, setSavedNote]   = useState('')
-  const [noteSaving, setNoteSaving] = useState(false)
-  const [noteMsg, setNoteMsg]       = useState('')
+  const [note, setNote]               = useState('')
+  const [savedNote, setSavedNote]     = useState('')
+  const [noteSaving, setNoteSaving]   = useState(false)
+  const [noteMsg, setNoteMsg]         = useState('')
 
   const [loading, setLoading]         = useState(false)
   const [yearLoading, setYearLoading] = useState(false)
@@ -195,20 +180,17 @@ export default function AgentPerformance() {
 
   // Load reference data once
   useEffect(() => {
-    getOrganizations().then(setOrgs).catch((e) => setError(e.message))
-    getGroups().then(setGroups).catch((e) => setError(e.message))
-    getMetrics()
-      .then((all) => setConfiguredMetrics(all.filter((m) => m.active)))
-      .catch((e) => setError(e.message))
+    getTeams().then(setTeams).catch((e) => setError(e.message))
+    getMetricDefinitions().then(setMetricDefs).catch((e) => setError(e.message))
   }, [])
 
-  // Reload agents when org/group filter changes
+  // Reload agents when team filter changes
   useEffect(() => {
     setAgentId('')
-    getAgents(orgId || undefined, groupId || undefined)
+    getAgents({ groupId: teamId || undefined })
       .then(setAgents)
       .catch((e) => setError(e.message))
-  }, [orgId, groupId])
+  }, [teamId])
 
   // Load monthly data when agent / year / month changes
   useEffect(() => {
@@ -217,13 +199,13 @@ export default function AgentPerformance() {
     setLoading(true)
     setError('')
     Promise.all([
-      getAgentScorecard({ agentId: Number(agentId), month: monthKey }),
-      getAgentMetricDetail({ agentId: Number(agentId), month: monthKey }),
+      getScorecard({ agentId: Number(agentId), month: monthKey }),
+      getSummary({ agentId: Number(agentId), month: monthKey }),
       getAgentMonthNote({ agentId: Number(agentId), noteMonth: monthKey }),
     ])
-      .then(([sc, det, noteRow]) => {
-        setScorecard(sc[0] ?? null)
-        setMonthDetail(det)
+      .then(([sc, sumRows, noteRow]) => {
+        setMonthDetail(sc)
+        setSummary(sumRows[0] ?? null)
         const t = noteRow?.note_text ?? ''
         setNote(t)
         setSavedNote(t)
@@ -232,11 +214,11 @@ export default function AgentPerformance() {
       .finally(() => setLoading(false))
   }, [agentId, year, selMonth])
 
-  // Load year data when agent / year changes
+  // Load year data for rollups
   useEffect(() => {
     if (!agentId) return
     setYearLoading(true)
-    getAgentYearDetail({ agentId: Number(agentId), year })
+    getScorecardYear({ agentId: Number(agentId), year })
       .then(setYearDetail)
       .catch((e) => setError(e.message))
       .finally(() => setYearLoading(false))
@@ -263,14 +245,19 @@ export default function AgentPerformance() {
     }
   }
 
-  // Derived metric lists
-  const configuredCore = configuredMetrics.filter((m) => m.counts_toward_rating && !m.visibility_only)
-  const configuredVisibility = configuredMetrics.filter((m) => m.visibility_only)
-
-  const coreRows = mergeMetrics(configuredCore, monthDetail)
-  const visibilityRows = mergeMetrics(configuredVisibility, monthDetail)
+  // Derived metric lists from definitions + view data
+  const scoredDefs  = metricDefs.filter((m) => m.counts_toward_score)
+  const otherDefs   = metricDefs.filter((m) => !m.counts_toward_score)
+  const scoredRows  = mergeMetrics(scoredDefs, monthDetail)
+  const otherRows   = mergeMetrics(otherDefs, monthDetail)
 
   const selectedMonthLabel = MONTH_OPTIONS.find((m) => m.value === selMonth)?.label ?? selMonth
+
+  // Summary card field aliases — handle different possible view column names
+  const ratingLabel = summary?.rating_label ?? summary?.score_label ?? '—'
+  const onTrackCount = summary?.on_track_count ?? '—'
+  const offTrackCount = summary?.off_track_count ?? '—'
+  const withDataCount = summary?.scored_with_data ?? summary?.scoring_metrics_with_data ?? summary?.metrics_with_data ?? '—'
 
   return (
     <div className="page">
@@ -284,17 +271,10 @@ export default function AgentPerformance() {
       {/* Filter bar */}
       <div className="filter-bar">
         <div className="filter-group">
-          <label className="filter-label">Organization</label>
-          <select className="filter-select" value={orgId} onChange={(e) => setOrgId(e.target.value)}>
-            <option value="">All Organizations</option>
-            {orgs.map((o) => <option key={o.id} value={o.id}>{o.organization_name}</option>)}
-          </select>
-        </div>
-        <div className="filter-group">
-          <label className="filter-label">Group</label>
-          <select className="filter-select" value={groupId} onChange={(e) => setGroupId(e.target.value)}>
-            <option value="">All Groups</option>
-            {groups.map((g) => <option key={g.id} value={g.id}>{g.group_name}</option>)}
+          <label className="filter-label">Team</label>
+          <select className="filter-select" value={teamId} onChange={(e) => setTeamId(e.target.value)}>
+            <option value="">All Teams</option>
+            {teams.map((t) => <option key={t.id} value={t.id}>{t.group_name}</option>)}
           </select>
         </div>
         <div className="filter-group">
@@ -321,78 +301,72 @@ export default function AgentPerformance() {
       {!agentId && (
         <div className="empty-state">
           <h3>Select an agent to view performance</h3>
-          <p>Choose an organization, group, and agent above.</p>
+          <p>Optionally filter by team, then choose an agent.</p>
         </div>
       )}
 
-      {agentId && loading && <div className="loading">Loading...</div>}
+      {agentId && loading && <div className="loading">Loading…</div>}
 
       {agentId && !loading && (
         <>
           {/* Summary cards */}
           <div className="cards-row">
             <div className="stat-card">
-              <div className="stat-label">Overall Status</div>
-              <div className={`stat-value ${ratingClass(scorecard?.rating_label)}`} style={{ fontSize: 18, marginTop: 4 }}>
-                {scorecard?.rating_label ?? '—'}
+              <div className="stat-label">Overall Rating</div>
+              <div className={`stat-value ${ratingClass(summary?.rating_label)}`} style={{ fontSize: 18, marginTop: 4 }}>
+                {ratingLabel}
               </div>
             </div>
             <div className="stat-card">
               <div className="stat-label">On Track</div>
-              <div className="stat-value" style={{ color: '#1a6e3a' }}>{scorecard?.on_track_count ?? '—'}</div>
+              <div className="stat-value" style={{ color: '#1a6e3a' }}>{onTrackCount}</div>
             </div>
             <div className="stat-card">
               <div className="stat-label">Off Track</div>
-              <div className="stat-value" style={{ color: '#842029' }}>{scorecard?.off_track_count ?? '—'}</div>
+              <div className="stat-value" style={{ color: '#842029' }}>{offTrackCount}</div>
             </div>
             <div className="stat-card">
               <div className="stat-label">With Data</div>
-              <div className="stat-value">{scorecard?.scoring_metrics_with_data ?? '—'}</div>
+              <div className="stat-value">{withDataCount}</div>
             </div>
           </div>
 
-          {/* Monthly: Core Rating Metrics */}
-          <div className="section-title">
-            Core Rating Metrics — {selectedMonthLabel} {year}
-          </div>
+          {/* Scored metrics */}
+          <div className="section-title">Scored Metrics — {selectedMonthLabel} {year}</div>
           <div className="table-wrap">
             <table>
               <thead>
                 <tr>
                   <th>Metric</th>
                   <th>Actual</th>
-                  <th>Target</th>
+                  <th>Goal</th>
                   <th>Tolerance</th>
                   <th>Status</th>
-                  <th>Source</th>
                 </tr>
               </thead>
               <tbody>
-                {coreRows.map((r) => <MonthlyMetricRow key={r.metric_key} row={r} />)}
+                {scoredRows.map((r) => <MetricRow key={r.metric_key} row={r} />)}
               </tbody>
             </table>
           </div>
 
-          {/* Monthly: Visibility Metrics */}
-          {configuredVisibility.length > 0 && (
+          {/* Other metrics */}
+          {otherDefs.length > 0 && (
             <>
-              <div className="section-title">
-                Additional Visibility Metrics — {selectedMonthLabel} {year}
-              </div>
+              <div className="section-title">Additional Metrics — {selectedMonthLabel} {year}</div>
               <div className="table-wrap">
                 <table>
                   <thead>
                     <tr>
                       <th>Metric</th>
                       <th>Actual</th>
-                      <th>Target</th>
+                      <th>Goal</th>
                       <th>Tolerance</th>
                       <th>Status</th>
-                      <th>Source</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {visibilityRows.map((r) => <MonthlyMetricRow key={r.metric_key} row={r} />)}
+                    {otherRows.map((r) => <MetricRow key={r.metric_key} row={r} />)}
                   </tbody>
                 </table>
               </div>
@@ -405,15 +379,15 @@ export default function AgentPerformance() {
           ) : (
             <>
               <RollupTable
-                title={`Quarterly Performance Summary — ${year}`}
+                title={`Quarterly Performance — ${year}`}
                 periods={QUARTERS}
-                configuredMetrics={configuredCore}
+                configuredMetrics={scoredDefs}
                 yearDetail={yearDetail}
               />
               <RollupTable
-                title={`Half-Year Performance Summary — ${year}`}
+                title={`Half-Year Performance — ${year}`}
                 periods={HALVES}
-                configuredMetrics={configuredCore}
+                configuredMetrics={scoredDefs}
                 yearDetail={yearDetail}
               />
             </>
@@ -427,7 +401,7 @@ export default function AgentPerformance() {
               style={{ width: '100%', marginBottom: 8 }}
               value={note}
               onChange={(e) => setNote(e.target.value)}
-              placeholder="Add a supervisor note for this agent and month..."
+              placeholder="Add a supervisor note for this agent and month…"
               rows={4}
             />
             <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>

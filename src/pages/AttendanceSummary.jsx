@@ -1,43 +1,39 @@
 import { useState, useEffect, useCallback } from 'react'
-import { getOrganizations, getGroups, getAttendanceMonthly } from '../lib/api'
+import { getTeams, getAttendanceMonthly } from '../lib/api'
 import { currentMonth, recentMonths } from '../lib/format'
 
 export default function AttendanceSummary() {
   const months = recentMonths(18)
-  const [orgs, setOrgs] = useState([])
-  const [groups, setGroups] = useState([])
+  const [teams, setTeams]   = useState([])
+  const [teamId, setTeamId] = useState('')
+  const [month, setMonth]   = useState(currentMonth())
 
-  const [orgId, setOrgId] = useState('')
-  const [groupId, setGroupId] = useState('')
-  const [month, setMonth] = useState(currentMonth())
-
-  const [rows, setRows] = useState([])
+  const [rows, setRows]       = useState([])
   const [loading, setLoading] = useState(false)
-  const [error, setError] = useState('')
+  const [error, setError]     = useState('')
 
   useEffect(() => {
-    getOrganizations().then(setOrgs).catch((e) => setError(e.message))
-    getGroups().then(setGroups).catch((e) => setError(e.message))
+    getTeams().then(setTeams).catch((e) => setError(e.message))
   }, [])
 
   const loadData = useCallback(async () => {
     setLoading(true)
     setError('')
     try {
-      const data = await getAttendanceMonthly({
-        month,
-        organizationId: orgId || undefined,
-        externalGroupId: groupId || undefined,
-      })
+      const data = await getAttendanceMonthly({ month })
       setRows(data)
     } catch (e) {
       setError(e.message)
     } finally {
       setLoading(false)
     }
-  }, [month, orgId, groupId])
+  }, [month])
 
   useEffect(() => { loadData() }, [loadData])
+
+  const displayRows = teamId
+    ? rows.filter((r) => String(r.external_group_id) === teamId)
+    : rows
 
   return (
     <div className="page">
@@ -56,52 +52,41 @@ export default function AttendanceSummary() {
           </select>
         </div>
         <div className="filter-group">
-          <label className="filter-label">Organization</label>
-          <select className="filter-select" value={orgId} onChange={(e) => setOrgId(e.target.value)}>
-            <option value="">All Organizations</option>
-            {orgs.map((o) => <option key={o.id} value={o.id}>{o.organization_name}</option>)}
-          </select>
-        </div>
-        <div className="filter-group">
-          <label className="filter-label">Group</label>
-          <select className="filter-select" value={groupId} onChange={(e) => setGroupId(e.target.value)}>
-            <option value="">All Groups</option>
-            {groups.map((g) => <option key={g.id} value={g.id}>{g.group_name}</option>)}
+          <label className="filter-label">Team</label>
+          <select className="filter-select" value={teamId} onChange={(e) => setTeamId(e.target.value)}>
+            <option value="">All Teams</option>
+            {teams.map((t) => <option key={t.id} value={t.id}>{t.group_name}</option>)}
           </select>
         </div>
       </div>
 
       {loading && <div className="loading">Loading...</div>}
 
-      {!loading && rows.length === 0 && (
+      {!loading && displayRows.length === 0 && (
         <div className="empty-state">
           <h3>No attendance data</h3>
           <p>No attendance records exist for the selected month and filters. Use Attendance Entry to add records.</p>
         </div>
       )}
 
-      {!loading && rows.length > 0 && (
+      {!loading && displayRows.length > 0 && (
         <div className="table-wrap">
           <table>
             <thead>
               <tr>
                 <th>Agent</th>
-                <th>Organization</th>
-                <th>Group</th>
                 <th>Scheduled Days</th>
                 <th>Available Days</th>
                 <th>Attendance %</th>
               </tr>
             </thead>
             <tbody>
-              {rows.map((r) => {
+              {displayRows.map((r) => {
                 const pct = r.attendance_pct
                 const pctColor = pct == null ? '#6b7a8d' : pct >= 90 ? '#1a6e3a' : pct >= 80 ? '#664d00' : '#842029'
                 return (
                   <tr key={r.agent_id}>
                     <td style={{ fontWeight: 500 }}>{r.agent_name}</td>
-                    <td>{r.organization_name ?? '—'}</td>
-                    <td>{r.external_group_name ?? '—'}</td>
                     <td>{r.scheduled_days ?? '—'}</td>
                     <td>{r.available_days ?? '—'}</td>
                     <td style={{ color: pctColor, fontWeight: 600 }}>
