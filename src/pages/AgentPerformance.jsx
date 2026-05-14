@@ -245,11 +245,8 @@ export default function AgentPerformance() {
     }
   }
 
-  // Derived metric lists from definitions + view data
-  const scoredDefs  = metricDefs.filter((m) => m.counts_toward_score)
-  const otherDefs   = metricDefs.filter((m) => !m.counts_toward_score)
-  const scoredRows  = mergeMetrics(scoredDefs, monthDetail)
-  const otherRows   = mergeMetrics(otherDefs, monthDetail)
+  // All active metrics merged with view data — counts_toward_score only affects summary cards
+  const allRows = mergeMetrics(metricDefs, monthDetail)
 
   const selectedMonthLabel = MONTH_OPTIONS.find((m) => m.value === selMonth)?.label ?? selMonth
 
@@ -331,8 +328,8 @@ export default function AgentPerformance() {
             </div>
           </div>
 
-          {/* Scored metrics */}
-          <div className="section-title">Scored Metrics — {selectedMonthLabel} {year}</div>
+          {/* All metrics */}
+          <div className="section-title">Metrics — {selectedMonthLabel} {year}</div>
           <div className="table-wrap">
             <table>
               <thead>
@@ -345,33 +342,10 @@ export default function AgentPerformance() {
                 </tr>
               </thead>
               <tbody>
-                {scoredRows.map((r) => <MetricRow key={r.metric_key} row={r} />)}
+                {allRows.map((r) => <MetricRow key={r.metric_key} row={r} />)}
               </tbody>
             </table>
           </div>
-
-          {/* Other metrics */}
-          {otherDefs.length > 0 && (
-            <>
-              <div className="section-title">Additional Metrics — {selectedMonthLabel} {year}</div>
-              <div className="table-wrap">
-                <table>
-                  <thead>
-                    <tr>
-                      <th>Metric</th>
-                      <th>Actual</th>
-                      <th>Goal</th>
-                      <th>Tolerance</th>
-                      <th>Status</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {otherRows.map((r) => <MetricRow key={r.metric_key} row={r} />)}
-                  </tbody>
-                </table>
-              </div>
-            </>
-          )}
 
           {/* Rollup tables */}
           {yearLoading ? (
@@ -381,13 +355,13 @@ export default function AgentPerformance() {
               <RollupTable
                 title={`Quarterly Performance — ${year}`}
                 periods={QUARTERS}
-                configuredMetrics={scoredDefs}
+                configuredMetrics={metricDefs}
                 yearDetail={yearDetail}
               />
               <RollupTable
                 title={`Half-Year Performance — ${year}`}
                 periods={HALVES}
-                configuredMetrics={scoredDefs}
+                configuredMetrics={metricDefs}
                 yearDetail={yearDetail}
               />
             </>
