@@ -157,7 +157,7 @@ export default function AttendanceEntry() {
   }, [])
 
   useEffect(() => {
-    getAgents({ groupId: groupId || undefined })
+    getAgents({ groupId: groupId || undefined, activeOnly: false })
       .then(setAgents)
       .catch((e) => setError(e.message))
   }, [groupId])
