@@ -106,15 +106,28 @@ function buildMetricList(viewRows, fallbackDefs) {
 
 // ── Sub-components ────────────────────────────────────────────────────────────
 
+function StatusCell({ status }) {
+  if (status === 'on_track' || status === 'off_track') {
+    return <span className={`badge ${statusClass(status)}`}>{statusLabel(status)}</span>
+  }
+  return <span style={{ color: '#9ca3af', fontSize: 11, fontStyle: 'italic' }}>{statusLabel(status)}</span>
+}
+
 function MetricRow({ row }) {
-  const sc = statusClass(row.metric_status)
+  const hasActual = row.actual_value != null
   return (
     <tr>
-      <td style={{ fontWeight: 500 }}>{row.metric_name}</td>
-      <td>{formatValue(row.actual_value, row.unit_type)}</td>
-      <td>{row.goal_value != null ? formatValue(row.goal_value, row.unit_type) : '—'}</td>
-      <td>{row.tolerance_value != null ? `±${row.tolerance_value}` : '—'}</td>
-      <td><span className={`badge ${sc}`}>{statusLabel(row.metric_status)}</span></td>
+      <td style={{ fontWeight: 500, minWidth: 160 }}>{row.metric_name}</td>
+      <td style={{ textAlign: 'right', fontWeight: hasActual ? 600 : 400, color: hasActual ? '#1a1a2e' : '#adb5bd' }}>
+        {hasActual ? formatValue(row.actual_value, row.unit_type) : '—'}
+      </td>
+      <td style={{ textAlign: 'right', color: '#6b7a8d' }}>
+        {row.goal_value != null ? formatValue(row.goal_value, row.unit_type) : '—'}
+      </td>
+      <td style={{ textAlign: 'right', color: '#6b7a8d' }}>
+        {row.tolerance_value != null ? `±${row.tolerance_value}` : '—'}
+      </td>
+      <td><StatusCell status={row.metric_status} /></td>
     </tr>
   )
 }
@@ -124,12 +137,12 @@ function RollupTable({ title, periods, configuredMetrics, yearDetail }) {
     <>
       <div className="section-title">{title}</div>
       <div className="table-wrap">
-        <table>
+        <table className="sc-table">
           <thead>
             <tr>
-              <th style={{ minWidth: 180, fontSize: 13, fontWeight: 700 }}>Metric</th>
+              <th className="sticky-metric-head" style={{ minWidth: 160, position: 'sticky', left: 0, zIndex: 2 }}>Metric</th>
               {periods.map((p) => (
-                <th key={p.label} style={{ minWidth: 120, fontSize: 13, fontWeight: 700, textAlign: 'center' }}>
+                <th key={p.label} className="period-th" style={{ minWidth: 90, width: 90 }}>
                   {p.label}
                 </th>
               ))}
@@ -143,23 +156,28 @@ function RollupTable({ title, periods, configuredMetrics, yearDetail }) {
                 .sort((a, b) => b.metric_month.localeCompare(a.metric_month))[0]
               return (
                 <tr key={metric.metric_key}>
-                  <td style={{ fontWeight: 600, fontSize: 13 }}>{metric.metric_name}</td>
+                  <td className="sticky-metric-cell" style={{ position: 'sticky', left: 0, background: 'inherit' }}>
+                    {metric.metric_name}
+                  </td>
                   {periods.map((p) => {
                     const periodRows = metricRows.filter((r) =>
                       p.months.includes(metricMonthNum(r.metric_month))
                     )
                     const actual = computePeriodActual(periodRows, metric.unit_type)
                     const status = deriveStatus(actual, refRow)
+                    const isTracked = status === 'on_track' || status === 'off_track'
                     return (
-                      <td key={p.label} style={{ textAlign: 'center' }}>
+                      <td key={p.label} style={{ textAlign: 'center', width: 90 }}>
                         {actual == null ? (
-                          <span style={{ color: '#adb5bd' }}>—</span>
+                          <span style={{ color: '#d1d5db' }}>—</span>
                         ) : (
                           <>
-                            <div style={{ fontWeight: 600, fontSize: 13 }}>{formatValue(actual, metric.unit_type)}</div>
-                            <span className={`badge ${statusClass(status)}`} style={{ fontSize: 10, marginTop: 3, display: 'inline-block' }}>
-                              {statusLabel(status)}
-                            </span>
+                            <div style={{ fontWeight: 700, fontSize: 12 }}>{formatValue(actual, metric.unit_type)}</div>
+                            {isTracked && (
+                              <span className={`badge ${statusClass(status)}`} style={{ fontSize: 9, marginTop: 2, display: 'inline-block' }}>
+                                {statusLabel(status)}
+                              </span>
+                            )}
                           </>
                         )}
                       </td>
@@ -360,14 +378,14 @@ export default function AgentPerformance() {
           {/* All metrics */}
           <div className="section-title">Metrics — {selectedMonthLabel} {year}</div>
           <div className="table-wrap">
-            <table>
+            <table className="sc-table">
               <thead>
                 <tr>
-                  <th>Metric</th>
-                  <th>Actual</th>
-                  <th>Goal</th>
-                  <th>Tolerance</th>
-                  <th>Status</th>
+                  <th style={{ minWidth: 160 }}>Metric</th>
+                  <th style={{ width: 90, textAlign: 'right' }}>Actual</th>
+                  <th style={{ width: 80, textAlign: 'right' }}>Goal</th>
+                  <th style={{ width: 80, textAlign: 'right' }}>Tolerance</th>
+                  <th style={{ width: 100 }}>Status</th>
                 </tr>
               </thead>
               <tbody>

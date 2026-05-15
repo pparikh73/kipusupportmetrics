@@ -96,30 +96,34 @@ function buildMetricList(viewRows, fallbackDefs) {
 
 function MetricCell({ row }) {
   if (!row || row.actual_value == null) {
-    return <td style={{ textAlign: 'center', color: '#adb5bd', fontSize: 12 }}>—</td>
+    return <td style={{ textAlign: 'center', color: '#d1d5db' }}>—</td>
   }
-  const sc = statusClass(row.metric_status)
+  const isTracked = row.metric_status === 'on_track' || row.metric_status === 'off_track'
   return (
     <td style={{ textAlign: 'center' }}>
-      <div style={{ fontWeight: 600, fontSize: 12 }}>{formatValue(row.actual_value, row.unit_type)}</div>
-      <span className={`badge ${sc}`} style={{ fontSize: 10, marginTop: 2, display: 'inline-block' }}>
-        {statusLabel(row.metric_status)}
-      </span>
+      <div style={{ fontWeight: 700, fontSize: 12 }}>{formatValue(row.actual_value, row.unit_type)}</div>
+      {isTracked && (
+        <span className={`badge ${statusClass(row.metric_status)}`} style={{ fontSize: 9, marginTop: 2, display: 'inline-block' }}>
+          {statusLabel(row.metric_status)}
+        </span>
+      )}
     </td>
   )
 }
 
 function PeriodMetricCell({ cell }) {
   if (!cell || cell.actual == null) {
-    return <td style={{ textAlign: 'center', color: '#adb5bd', fontSize: 12 }}>—</td>
+    return <td style={{ textAlign: 'center', color: '#d1d5db' }}>—</td>
   }
-  const sc = statusClass(cell.status)
+  const isTracked = cell.status === 'on_track' || cell.status === 'off_track'
   return (
     <td style={{ textAlign: 'center' }}>
-      <div style={{ fontWeight: 600, fontSize: 12 }}>{formatValue(cell.actual, cell.unitType)}</div>
-      <span className={`badge ${sc}`} style={{ fontSize: 10, marginTop: 2, display: 'inline-block' }}>
-        {statusLabel(cell.status)}
-      </span>
+      <div style={{ fontWeight: 700, fontSize: 12 }}>{formatValue(cell.actual, cell.unitType)}</div>
+      {isTracked && (
+        <span className={`badge ${statusClass(cell.status)}`} style={{ fontSize: 9, marginTop: 2, display: 'inline-block' }}>
+          {statusLabel(cell.status)}
+        </span>
+      )}
     </td>
   )
 }
@@ -344,19 +348,19 @@ export default function TeamDashboard() {
             </div>
           ) : (
             <div className="table-wrap">
-              <table style={{ fontSize: 12 }}>
+              <table className="sc-table">
                 <thead>
                   <tr>
-                    <th style={{ ...stickyCol, background: '#f8f9fb' }}>Metric</th>
+                    <th className="sticky-metric-head" style={{ ...stickyCol, background: '#f8f9fb', zIndex: 2 }}>Metric</th>
                     {displayAgents.map((a) => (
-                      <th key={a.id} style={{ minWidth: 110, textAlign: 'center' }}>{a.agent_name}</th>
+                      <th key={a.id} style={{ width: 90, minWidth: 80, textAlign: 'center' }}>{a.agent_name}</th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
                   {allMetrics.map((metric) => (
                     <tr key={metric.metric_key}>
-                      <td style={{ ...stickyCol, background: '#fff', fontWeight: 600 }}>
+                      <td className="sticky-metric-cell" style={{ ...stickyCol, background: 'inherit' }}>
                         {metric.metric_name}
                       </td>
                       {displayAgents.map((agent) => (
@@ -390,12 +394,12 @@ export default function TeamDashboard() {
               {/* Quarterly table — rows: metrics, columns: Q × agents */}
               <div className="section-title">Quarterly Team Summary — {rollupYear}</div>
               <div className="table-wrap">
-                <table style={{ fontSize: 12 }}>
+                <table className="sc-table">
                   <thead>
                     <tr>
-                      <th rowSpan={2} style={{ ...stickyCol, background: '#f8f9fb', verticalAlign: 'bottom' }}>Metric</th>
+                      <th rowSpan={2} className="sticky-metric-head" style={{ ...stickyCol, background: '#f8f9fb', verticalAlign: 'bottom', zIndex: 3 }}>Metric</th>
                       {QUARTERS.map((q) => (
-                        <th key={q.label} colSpan={displayAgents.length} style={{ textAlign: 'center', fontWeight: 700, borderBottom: '1px solid #dee2e6' }}>
+                        <th key={q.label} colSpan={displayAgents.length} className="period-th">
                           {q.label}
                         </th>
                       ))}
@@ -403,7 +407,7 @@ export default function TeamDashboard() {
                     <tr>
                       {QUARTERS.map((q) =>
                         displayAgents.map((a) => (
-                          <th key={`${q.label}-${a.id}`} style={{ minWidth: 90, textAlign: 'center', fontWeight: 600, fontSize: 11, background: '#f8f9fb' }}>
+                          <th key={`${q.label}-${a.id}`} style={{ width: 75, minWidth: 70, textAlign: 'center', fontSize: 10 }}>
                             {a.agent_name}
                           </th>
                         ))
@@ -413,7 +417,7 @@ export default function TeamDashboard() {
                   <tbody>
                     {rollupMetrics.map((metric) => (
                       <tr key={metric.metric_key}>
-                        <td style={{ ...stickyCol, background: '#fff', fontWeight: 600 }}>
+                        <td className="sticky-metric-cell" style={{ ...stickyCol, background: 'inherit' }}>
                           {metric.metric_name}
                         </td>
                         {QUARTERS.map((q) =>
@@ -433,12 +437,12 @@ export default function TeamDashboard() {
               {/* Half-year table — rows: metrics, columns: H × agents */}
               <div className="section-title">Half-Year Team Summary — {rollupYear}</div>
               <div className="table-wrap">
-                <table style={{ fontSize: 12 }}>
+                <table className="sc-table">
                   <thead>
                     <tr>
-                      <th rowSpan={2} style={{ ...stickyCol, background: '#f8f9fb', verticalAlign: 'bottom' }}>Metric</th>
+                      <th rowSpan={2} className="sticky-metric-head" style={{ ...stickyCol, background: '#f8f9fb', verticalAlign: 'bottom', zIndex: 3 }}>Metric</th>
                       {HALVES.map((h) => (
-                        <th key={h.label} colSpan={displayAgents.length} style={{ textAlign: 'center', fontWeight: 700, borderBottom: '1px solid #dee2e6' }}>
+                        <th key={h.label} colSpan={displayAgents.length} className="period-th">
                           {h.label}
                         </th>
                       ))}
@@ -446,7 +450,7 @@ export default function TeamDashboard() {
                     <tr>
                       {HALVES.map((h) =>
                         displayAgents.map((a) => (
-                          <th key={`${h.label}-${a.id}`} style={{ minWidth: 90, textAlign: 'center', fontWeight: 600, fontSize: 11, background: '#f8f9fb' }}>
+                          <th key={`${h.label}-${a.id}`} style={{ width: 75, minWidth: 70, textAlign: 'center', fontSize: 10 }}>
                             {a.agent_name}
                           </th>
                         ))
@@ -456,7 +460,7 @@ export default function TeamDashboard() {
                   <tbody>
                     {rollupMetrics.map((metric) => (
                       <tr key={metric.metric_key}>
-                        <td style={{ ...stickyCol, background: '#fff', fontWeight: 600 }}>
+                        <td className="sticky-metric-cell" style={{ ...stickyCol, background: 'inherit' }}>
                           {metric.metric_name}
                         </td>
                         {HALVES.map((h) =>

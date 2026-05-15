@@ -36,20 +36,22 @@ export function formatTolerance(value, unit, unitType) {
 
 export function statusLabel(metricStatus) {
   const map = {
-    on_track: 'On Track',
+    on_track:  'On Track',
     off_track: 'Off Track',
-    no_target: 'No Target',
-    no_data: 'No Data',
+    no_target: 'No Goal',
+    no_goal:   'No Goal',
+    no_data:   'No Data',
   }
   return map[metricStatus] ?? metricStatus
 }
 
 export function statusClass(metricStatus) {
   const map = {
-    on_track: 'status-on-track',
+    on_track:  'status-on-track',
     off_track: 'status-off-track',
-    no_target: 'status-no-target',
-    no_data: 'status-no-data',
+    no_target: 'status-no-goal',
+    no_goal:   'status-no-goal',
+    no_data:   'status-no-data',
   }
   return map[metricStatus] ?? ''
 }
