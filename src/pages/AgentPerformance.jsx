@@ -80,6 +80,30 @@ function mergeMetrics(configuredList, viewRows) {
   })
 }
 
+// Build display metric list from view rows (primary) + metricDefs (fallback for no-data rows).
+// This ensures metrics that exist in the view but not in metrics_definitions still appear.
+function buildMetricList(viewRows, fallbackDefs) {
+  const seen = new Set()
+  const list = []
+  viewRows.forEach((r) => {
+    if (!seen.has(r.metric_key)) {
+      seen.add(r.metric_key)
+      list.push({
+        metric_key: r.metric_key,
+        metric_name: r.metric_name,
+        unit_type: r.unit_type,
+        direction_good: r.direction_good,
+        counts_toward_score: r.counts_toward_score,
+        display_order: r.display_order ?? 999,
+      })
+    }
+  })
+  fallbackDefs.forEach((m) => {
+    if (!seen.has(m.metric_key)) list.push({ ...m, display_order: m.display_order ?? 999 })
+  })
+  return list.sort((a, b) => (a.display_order ?? 999) - (b.display_order ?? 999))
+}
+
 // ── Sub-components ────────────────────────────────────────────────────────────
 
 function MetricRow({ row }) {
@@ -245,8 +269,13 @@ export default function AgentPerformance() {
     }
   }
 
-  // All active metrics merged with view data — counts_toward_score only affects summary cards
-  const allRows = mergeMetrics(metricDefs, monthDetail)
+  // Build display metric list: view data is the primary source so metrics that exist in
+  // metrics_vw_ab_scorecard but not in metrics_definitions (or are inactive there) still appear.
+  const displayMetrics = useMemo(() => buildMetricList(monthDetail, metricDefs), [monthDetail, metricDefs])
+  const rollupMetrics  = useMemo(() => buildMetricList(yearDetail,  metricDefs), [yearDetail,  metricDefs])
+
+  // Merge produces a row for every display metric (placeholder when agent has no data for it)
+  const allRows = mergeMetrics(displayMetrics, monthDetail)
 
   const selectedMonthLabel = MONTH_OPTIONS.find((m) => m.value === selMonth)?.label ?? selMonth
 
@@ -355,13 +384,13 @@ export default function AgentPerformance() {
               <RollupTable
                 title={`Quarterly Performance — ${year}`}
                 periods={QUARTERS}
-                configuredMetrics={metricDefs}
+                configuredMetrics={rollupMetrics}
                 yearDetail={yearDetail}
               />
               <RollupTable
                 title={`Half-Year Performance — ${year}`}
                 periods={HALVES}
-                configuredMetrics={metricDefs}
+                configuredMetrics={rollupMetrics}
                 yearDetail={yearDetail}
               />
             </>

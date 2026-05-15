@@ -68,6 +68,30 @@ function computeAgentPeriodMetrics(agentId, periodMonths, yearDetail, metrics) {
   return result
 }
 
+// Build display metric list: view data is the primary source so metrics that exist in
+// metrics_vw_ab_scorecard but not in metrics_definitions (or are inactive there) still appear.
+function buildMetricList(viewRows, fallbackDefs) {
+  const seen = new Set()
+  const list = []
+  viewRows.forEach((r) => {
+    if (!seen.has(r.metric_key)) {
+      seen.add(r.metric_key)
+      list.push({
+        metric_key: r.metric_key,
+        metric_name: r.metric_name,
+        unit_type: r.unit_type,
+        direction_good: r.direction_good,
+        counts_toward_score: r.counts_toward_score,
+        display_order: r.display_order ?? 999,
+      })
+    }
+  })
+  fallbackDefs.forEach((m) => {
+    if (!seen.has(m.metric_key)) list.push({ ...m, display_order: m.display_order ?? 999 })
+  })
+  return list.sort((a, b) => (a.display_order ?? 999) - (b.display_order ?? 999))
+}
+
 // ── Sub-components ────────────────────────────────────────────────────────────
 
 function MetricCell({ row }) {
@@ -171,8 +195,10 @@ export default function TeamDashboard() {
 
   // ── Derived data ─────────────────────────────────────────────────────────────
 
-  // All active metrics for display (counts_toward_score only affects summary calcs)
-  const allMetrics = metricDefs  // already filtered active=true by getMetricDefinitions()
+  // Build display metric lists from view data (primary) + metricDefs (fallback).
+  // This surfaces metrics that exist in metrics_vw_ab_scorecard but not in metrics_definitions.
+  const allMetrics    = useMemo(() => buildMetricList(monthDetail, metricDefs), [monthDetail, metricDefs])
+  const rollupMetrics = useMemo(() => buildMetricList(yearDetail,  metricDefs), [yearDetail,  metricDefs])
 
   // Scored metrics — only for rating/on-track summary card calculations
   const scoredDefs = useMemo(() => metricDefs.filter((m) => m.counts_toward_score), [metricDefs])
@@ -193,28 +219,28 @@ export default function TeamDashboard() {
     [agents, search]
   )
 
-  // Pre-compute period rollups for all agents
+  // Pre-compute period rollups for all agents using rollupMetrics (view-derived)
   const quarterlyData = useMemo(() => {
     const result = {}
     agents.forEach((agent) => {
       result[agent.id] = {}
       QUARTERS.forEach((q) => {
-        result[agent.id][q.label] = computeAgentPeriodMetrics(agent.id, q.months, yearDetail, allMetrics)
+        result[agent.id][q.label] = computeAgentPeriodMetrics(agent.id, q.months, yearDetail, rollupMetrics)
       })
     })
     return result
-  }, [agents, yearDetail, allMetrics])
+  }, [agents, yearDetail, rollupMetrics])
 
   const halfData = useMemo(() => {
     const result = {}
     agents.forEach((agent) => {
       result[agent.id] = {}
       HALVES.forEach((h) => {
-        result[agent.id][h.label] = computeAgentPeriodMetrics(agent.id, h.months, yearDetail, allMetrics)
+        result[agent.id][h.label] = computeAgentPeriodMetrics(agent.id, h.months, yearDetail, rollupMetrics)
       })
     })
     return result
-  }, [agents, yearDetail, allMetrics])
+  }, [agents, yearDetail, rollupMetrics])
 
   // Summary card values
   const selectedTeam = teams.find((t) => String(t.id) === teamId)
@@ -385,7 +411,7 @@ export default function TeamDashboard() {
                     </tr>
                   </thead>
                   <tbody>
-                    {allMetrics.map((metric) => (
+                    {rollupMetrics.map((metric) => (
                       <tr key={metric.metric_key}>
                         <td style={{ ...stickyCol, background: '#fff', fontWeight: 600 }}>
                           {metric.metric_name}
@@ -428,7 +454,7 @@ export default function TeamDashboard() {
                     </tr>
                   </thead>
                   <tbody>
-                    {allMetrics.map((metric) => (
+                    {rollupMetrics.map((metric) => (
                       <tr key={metric.metric_key}>
                         <td style={{ ...stickyCol, background: '#fff', fontWeight: 600 }}>
                           {metric.metric_name}
