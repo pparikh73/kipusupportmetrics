@@ -275,7 +275,6 @@ export default function AgentPerformance() {
         agentId: Number(agentId),
         noteMonth: `${year}-${selMonth}`,
         noteText: note,
-        createdBy: 'admin',
       })
       setSavedNote(note)
       setNoteMsg('Saved.')
