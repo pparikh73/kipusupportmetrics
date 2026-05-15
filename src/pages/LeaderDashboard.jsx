@@ -223,6 +223,18 @@ export default function TeamDashboard() {
     [agents, search]
   )
 
+  // Only show agents who have at least one actual value in the selected month
+  const activeMonthAgents = useMemo(
+    () => displayAgents.filter((a) => monthDetail.some((r) => r.agent_id === a.id && r.actual_value != null)),
+    [displayAgents, monthDetail]
+  )
+
+  // Only show agents who have at least one actual value anywhere in the rollup year
+  const activeYearAgents = useMemo(
+    () => displayAgents.filter((a) => yearDetail.some((r) => r.agent_id === a.id && r.actual_value != null)),
+    [displayAgents, yearDetail]
+  )
+
   // Pre-compute period rollups for all agents using rollupMetrics (view-derived)
   const quarterlyData = useMemo(() => {
     const result = {}
@@ -341,10 +353,10 @@ export default function TeamDashboard() {
           {/* Monthly table — rows: metrics, columns: agents */}
           <div className="section-title">Monthly Performance — {monthLabel}</div>
 
-          {displayAgents.length === 0 ? (
+          {activeMonthAgents.length === 0 ? (
             <div className="empty-state">
-              <h3>No agents found</h3>
-              <p>No assigned agents match the current filters.</p>
+              <h3>No data this month</h3>
+              <p>No agents have recorded data for {monthLabel}.</p>
             </div>
           ) : (
             <div className="table-wrap">
@@ -352,7 +364,7 @@ export default function TeamDashboard() {
                 <thead>
                   <tr>
                     <th className="sticky-metric-head" style={{ ...stickyCol, background: '#f8f9fb', zIndex: 2 }}>Metric</th>
-                    {displayAgents.map((a) => (
+                    {activeMonthAgents.map((a) => (
                       <th key={a.id} style={{ width: 90, minWidth: 80, textAlign: 'center' }}>{a.agent_name}</th>
                     ))}
                   </tr>
@@ -363,7 +375,7 @@ export default function TeamDashboard() {
                       <td className="sticky-metric-cell" style={{ ...stickyCol, background: 'inherit' }}>
                         {metric.metric_name}
                       </td>
-                      {displayAgents.map((agent) => (
+                      {activeMonthAgents.map((agent) => (
                         <MetricCell key={agent.id} row={detailByAgent[agent.id]?.[metric.metric_key]} />
                       ))}
                     </tr>
@@ -389,7 +401,7 @@ export default function TeamDashboard() {
             {yearLoading && <span style={{ fontSize: 12, color: '#6b7a8d' }}>Loading…</span>}
           </div>
 
-          {!yearLoading && displayAgents.length > 0 && (
+          {!yearLoading && activeYearAgents.length > 0 && (
             <>
               {/* Quarterly table — rows: metrics, columns: Q × agents */}
               <div className="section-title">Quarterly Team Summary — {rollupYear}</div>
@@ -399,14 +411,14 @@ export default function TeamDashboard() {
                     <tr>
                       <th rowSpan={2} className="sticky-metric-head" style={{ ...stickyCol, background: '#f8f9fb', verticalAlign: 'bottom', zIndex: 3 }}>Metric</th>
                       {QUARTERS.map((q) => (
-                        <th key={q.label} colSpan={displayAgents.length} className="period-th">
+                        <th key={q.label} colSpan={activeYearAgents.length} className="period-th">
                           {q.label}
                         </th>
                       ))}
                     </tr>
                     <tr>
                       {QUARTERS.map((q) =>
-                        displayAgents.map((a) => (
+                        activeYearAgents.map((a) => (
                           <th key={`${q.label}-${a.id}`} style={{ width: 75, minWidth: 70, textAlign: 'center', fontSize: 10 }}>
                             {a.agent_name}
                           </th>
@@ -421,7 +433,7 @@ export default function TeamDashboard() {
                           {metric.metric_name}
                         </td>
                         {QUARTERS.map((q) =>
-                          displayAgents.map((agent) => (
+                          activeYearAgents.map((agent) => (
                             <PeriodMetricCell
                               key={`${q.label}-${agent.id}`}
                               cell={quarterlyData[agent.id]?.[q.label]?.[metric.metric_key]}
@@ -442,14 +454,14 @@ export default function TeamDashboard() {
                     <tr>
                       <th rowSpan={2} className="sticky-metric-head" style={{ ...stickyCol, background: '#f8f9fb', verticalAlign: 'bottom', zIndex: 3 }}>Metric</th>
                       {HALVES.map((h) => (
-                        <th key={h.label} colSpan={displayAgents.length} className="period-th">
+                        <th key={h.label} colSpan={activeYearAgents.length} className="period-th">
                           {h.label}
                         </th>
                       ))}
                     </tr>
                     <tr>
                       {HALVES.map((h) =>
-                        displayAgents.map((a) => (
+                        activeYearAgents.map((a) => (
                           <th key={`${h.label}-${a.id}`} style={{ width: 75, minWidth: 70, textAlign: 'center', fontSize: 10 }}>
                             {a.agent_name}
                           </th>
@@ -464,7 +476,7 @@ export default function TeamDashboard() {
                           {metric.metric_name}
                         </td>
                         {HALVES.map((h) =>
-                          displayAgents.map((agent) => (
+                          activeYearAgents.map((agent) => (
                             <PeriodMetricCell
                               key={`${h.label}-${agent.id}`}
                               cell={halfData[agent.id]?.[h.label]?.[metric.metric_key]}
