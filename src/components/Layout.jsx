@@ -49,7 +49,7 @@ export default function Layout({ children }) {
                 <NavLink
                   key={item.to}
                   to={item.to}
-                  end={item.to === '/'}
+                  end={item.to === '/' || item.to === '/attendance'}
                   className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}
                 >
                   {item.label}

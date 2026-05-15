@@ -258,15 +258,20 @@ export default function TeamDashboard() {
     return result
   }, [agents, yearDetail, rollupMetrics])
 
-  // Summary card values
+  // Summary card values — scoped to agents actually shown in the monthly table
   const selectedTeam = teams.find((t) => String(t.id) === teamId)
-  const ratingDist   = summaries.reduce((acc, r) => {
+  const activeMonthAgentIds = useMemo(() => new Set(activeMonthAgents.map((a) => a.id)), [activeMonthAgents])
+  const activeSummaries = useMemo(
+    () => summaries.filter((r) => activeMonthAgentIds.has(r.agent_id)),
+    [summaries, activeMonthAgentIds]
+  )
+  const ratingDist = activeSummaries.reduce((acc, r) => {
     const lbl = r.rating_label ?? r.score_label ?? 'Unknown'
     acc[lbl] = (acc[lbl] ?? 0) + 1
     return acc
   }, {})
-  const avgOnTrack = summaries.length
-    ? (summaries.reduce((s, r) => s + (r.on_track_count ?? 0), 0) / summaries.length).toFixed(1)
+  const avgOnTrack = activeSummaries.length
+    ? (activeSummaries.reduce((s, r) => s + (r.on_track_count ?? 0), 0) / activeSummaries.length).toFixed(1)
     : '—'
 
   const monthLabel = monthOptions.find((m) => m.value === month)?.label ?? month
@@ -331,8 +336,8 @@ export default function TeamDashboard() {
             </div>
             <div className="stat-card">
               <div className="stat-label">Agents</div>
-              <div className="stat-value">{agents.length}</div>
-              <div className="stat-sub">assigned</div>
+              <div className="stat-value">{activeMonthAgents.length}</div>
+              <div className="stat-sub">with data this month</div>
             </div>
             <div className="stat-card">
               <div className="stat-label">Avg On Track</div>
