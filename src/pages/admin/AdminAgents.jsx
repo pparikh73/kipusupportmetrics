@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { getAllAgents, upsertAgent } from '../../lib/api'
+import { getAllAgents, upsertAgent, getAgentTeamAssignments, deleteTeamAssignment, getTeams, upsertTeamAssignment } from '../../lib/api'
 import Modal from '../../components/Modal'
 
 export default function AdminAgents() {
@@ -13,6 +13,11 @@ export default function AdminAgents() {
   const [search, setSearch]           = useState('')
   const [activeFilter, setActiveFilter] = useState('active')
   const [searchParams]                  = useSearchParams()
+
+  const [agentAssignments, setAgentAssignments] = useState([])
+  const [teams, setTeams] = useState([])
+  const [newAssignTeamId, setNewAssignTeamId] = useState('')
+  const [newAssignMonth, setNewAssignMonth] = useState('')
 
   const load = () => {
     setLoading(true)
@@ -30,6 +35,20 @@ export default function AdminAgents() {
   }
 
   useEffect(() => { load() }, [])
+
+  // Load teams once on mount
+  useEffect(() => {
+    getTeams().then(setTeams).catch(() => {})
+  }, [])
+
+  // Load agent team assignments when editing changes
+  useEffect(() => {
+    if (editing?.id) {
+      getAgentTeamAssignments(editing.id).then(setAgentAssignments).catch(() => {})
+    } else {
+      setAgentAssignments([])
+    }
+  }, [editing?.id])
 
   const save = async () => {
     setSaving(true)
@@ -149,12 +168,20 @@ export default function AdminAgents() {
           </div>
           <div className="form-group" style={{ marginBottom: 12 }}>
             <label className="form-label">Role</label>
-            <input
-              className="form-input"
+            <select
+              className="form-select"
               value={editing.role ?? ''}
               onChange={(e) => setEditing({ ...editing, role: e.target.value })}
-              placeholder="e.g. Support Agent, Team Lead"
-            />
+            >
+              <option value="">— Select role —</option>
+              <option value="Support Specialist">Support Specialist</option>
+              <option value="PSA">PSA</option>
+              <option value="Team Lead">Team Lead</option>
+              <option value="Supervisor">Supervisor</option>
+              <option value="Manager">Manager</option>
+              <option value="Trainer">Trainer</option>
+              <option value="Other">Other</option>
+            </select>
           </div>
           <div className="form-row">
             <div className="form-group">
@@ -189,6 +216,85 @@ export default function AdminAgents() {
             <input type="checkbox" checked={!!editing.active} onChange={(e) => setEditing({ ...editing, active: e.target.checked })} />
             Active
           </label>
+
+          {/* APT-75: Team assignments section */}
+          {editing?.id && (
+            <div style={{ marginTop: 16, borderTop: '1px solid #e2e6ea', paddingTop: 14 }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: '#1a1a2e', marginBottom: 8 }}>Team Assignments</div>
+              {agentAssignments.length === 0 ? (
+                <div style={{ fontSize: 12, color: '#9ca3af', marginBottom: 8 }}>No team assignments.</div>
+              ) : (
+                <table style={{ width: '100%', fontSize: 12, marginBottom: 10, borderCollapse: 'collapse' }}>
+                  <thead>
+                    <tr>
+                      <th style={{ textAlign: 'left', padding: '3px 6px', color: '#6b7a8d', fontWeight: 600 }}>Team</th>
+                      <th style={{ textAlign: 'left', padding: '3px 6px', color: '#6b7a8d', fontWeight: 600 }}>From</th>
+                      <th style={{ padding: '3px 6px' }}></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {agentAssignments.map((a) => (
+                      <tr key={a.id}>
+                        <td style={{ padding: '3px 6px' }}>{a.metrics_groups?.group_name ?? '—'}</td>
+                        <td style={{ padding: '3px 6px', color: '#6b7a8d' }}>{a.effective_start_month ?? '—'}</td>
+                        <td style={{ padding: '3px 6px' }}>
+                          <button
+                            className="btn btn-danger btn-sm"
+                            onClick={async () => {
+                              await deleteTeamAssignment(a.id)
+                              setAgentAssignments((prev) => prev.filter((x) => x.id !== a.id))
+                            }}
+                          >
+                            Remove
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+              <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end', flexWrap: 'wrap' }}>
+                <div className="form-group" style={{ flex: 1, minWidth: 140, marginBottom: 0 }}>
+                  <label className="form-label">Add Team</label>
+                  <select className="form-select" value={newAssignTeamId} onChange={(e) => setNewAssignTeamId(e.target.value)}>
+                    <option value="">— Select —</option>
+                    {teams.map((t) => <option key={t.id} value={t.id}>{t.group_name}</option>)}
+                  </select>
+                </div>
+                <div className="form-group" style={{ flex: 1, minWidth: 130, marginBottom: 0 }}>
+                  <label className="form-label">Effective From (YYYY-MM)</label>
+                  <input
+                    className="form-input"
+                    placeholder="e.g. 2025-01"
+                    value={newAssignMonth}
+                    onChange={(e) => setNewAssignMonth(e.target.value)}
+                  />
+                </div>
+                <button
+                  className="btn btn-secondary btn-sm"
+                  disabled={!newAssignTeamId}
+                  onClick={async () => {
+                    try {
+                      const row = await upsertTeamAssignment({
+                        agent_id: editing.id,
+                        group_id: Number(newAssignTeamId),
+                        effective_start_month: newAssignMonth || null,
+                      })
+                      const team = teams.find((t) => String(t.id) === newAssignTeamId)
+                      setAgentAssignments((prev) => [...prev, { ...row, metrics_groups: { group_name: team?.group_name } }])
+                      setNewAssignTeamId('')
+                      setNewAssignMonth('')
+                    } catch (e) {
+                      setError(e.message)
+                    }
+                  }}
+                  style={{ alignSelf: 'flex-end' }}
+                >
+                  Add
+                </button>
+              </div>
+            </div>
+          )}
         </Modal>
       )}
     </div>

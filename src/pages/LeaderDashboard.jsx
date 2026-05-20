@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import {
   getTeams, getAgents,
-  getMetricDefinitions, getScorecard, getScorecardYear, getSummary,
+  getAllMetricDefinitions, getScorecard, getScorecardYear, getSummary,
 } from '../lib/api'
 import { formatValue, statusClass, statusLabel, ratingClass, recentMonths } from '../lib/format'
 
@@ -24,6 +24,13 @@ const HALVES = [
   { label: 'H1', months: [1, 2, 3, 4, 5, 6] },
   { label: 'H2', months: [7, 8, 9, 10, 11, 12] },
 ]
+
+// ── localStorage helpers ──────────────────────────────────────────────────────
+
+function loadPref(key, fallback) {
+  try { const v = localStorage.getItem(key); return v !== null ? v : fallback } catch { return fallback }
+}
+function savePref(key, val) { try { localStorage.setItem(key, String(val)) } catch {} }
 
 // ── Rollup helpers ────────────────────────────────────────────────────────────
 
@@ -68,13 +75,12 @@ function computeAgentPeriodMetrics(agentId, periodMonths, yearDetail, metrics) {
   return result
 }
 
-// Build display metric list: view data is the primary source so metrics that exist in
-// metrics_vw_ab_scorecard but not in metrics_definitions (or are inactive there) still appear.
-function buildMetricList(viewRows, fallbackDefs) {
+// View rows are the primary source; inactive definition keys are excluded.
+function buildMetricList(viewRows, fallbackDefs, inactiveKeys = new Set()) {
   const seen = new Set()
   const list = []
   viewRows.forEach((r) => {
-    if (!seen.has(r.metric_key)) {
+    if (!seen.has(r.metric_key) && !inactiveKeys.has(r.metric_key)) {
       seen.add(r.metric_key)
       list.push({
         metric_key: r.metric_key,
@@ -102,6 +108,9 @@ function MetricCell({ row }) {
   return (
     <td style={{ textAlign: 'center' }}>
       <div style={{ fontWeight: 700, fontSize: 12 }}>{formatValue(row.actual_value, row.unit_type)}</div>
+      {row.goal_value != null && (
+        <div style={{ fontSize: 9, color: '#9ca3af', marginTop: 1 }}>Goal: {formatValue(row.goal_value, row.unit_type)}</div>
+      )}
       {isTracked && (
         <span className={`badge ${statusClass(row.metric_status)}`} style={{ fontSize: 9, marginTop: 2, display: 'inline-block' }}>
           {statusLabel(row.metric_status)}
@@ -134,14 +143,16 @@ export default function TeamDashboard() {
   const monthOptions = recentMonths(24)
   const yearOptions = getYearOptions()
 
-  const [teams, setTeams]       = useState([])
-  const [agents, setAgents]     = useState([])
-  const [metricDefs, setMetricDefs] = useState([])
+  const [teams, setTeams]   = useState([])
+  const [agents, setAgents] = useState([])
+  const [allDefs, setAllDefs] = useState([])
 
-  const [teamId, setTeamId]     = useState('')
-  const [search, setSearch]     = useState('')
-  const [month, setMonth]       = useState(monthOptions[0]?.value ?? '')
-  const [rollupYear, setRollupYear] = useState(String(new Date().getFullYear()))
+  const [teamId, setTeamId]         = useState(() => loadPref('ktp_td_team', ''))
+  const [search, setSearch]         = useState('')
+  const [month, setMonth]           = useState(() => loadPref('ktp_td_month', monthOptions[0]?.value ?? ''))
+  const [rollupYear, setRollupYear] = useState(() => loadPref('ktp_td_year', String(new Date().getFullYear())))
+  const [showInactive, setShowInactive] = useState(false)
+  const [selectedQ, setSelectedQ]   = useState('all')
 
   const [monthDetail, setMonthDetail] = useState([])
   const [summaries, setSummaries]     = useState([])
@@ -151,13 +162,19 @@ export default function TeamDashboard() {
   const [yearLoading, setYearLoading] = useState(false)
   const [error, setError]             = useState('')
 
-  // Load reference data once; default to first team
+  // APT-61: Save filter prefs
+  useEffect(() => savePref('ktp_td_team', teamId), [teamId])
+  useEffect(() => savePref('ktp_td_month', month), [month])
+  useEffect(() => savePref('ktp_td_year', rollupYear), [rollupYear])
+
+  // APT-65: Load all defs (active + inactive); default to first team only if no saved pref
   useEffect(() => {
-    Promise.all([getTeams(), getMetricDefinitions()])
+    Promise.all([getTeams(), getAllMetricDefinitions()])
       .then(([t, m]) => {
         setTeams(t)
-        setMetricDefs(m)
-        if (t.length > 0) setTeamId(String(t[0].id))
+        setAllDefs(m)
+        const saved = loadPref('ktp_td_team', '')
+        if (!saved && t.length > 0) setTeamId(String(t[0].id))
       })
       .catch((e) => setError(e.message))
   }, [])
@@ -199,13 +216,13 @@ export default function TeamDashboard() {
 
   // ── Derived data ─────────────────────────────────────────────────────────────
 
-  // Build display metric lists from view data (primary) + metricDefs (fallback).
-  // This surfaces metrics that exist in metrics_vw_ab_scorecard but not in metrics_definitions.
-  const allMetrics    = useMemo(() => buildMetricList(monthDetail, metricDefs), [monthDetail, metricDefs])
-  const rollupMetrics = useMemo(() => buildMetricList(yearDetail,  metricDefs), [yearDetail,  metricDefs])
+  // APT-65: Derive active metricDefs and inactiveKeys
+  const metricDefs = useMemo(() => allDefs.filter((d) => d.active), [allDefs])
+  const inactiveKeys = useMemo(() => new Set(allDefs.filter((d) => !d.active).map((d) => d.metric_key)), [allDefs])
 
-  // Scored metrics — only for rating/on-track summary card calculations
-  const scoredDefs = useMemo(() => metricDefs.filter((m) => m.counts_toward_score), [metricDefs])
+  // Build display metric lists with inactiveKeys filter
+  const allMetrics    = useMemo(() => buildMetricList(monthDetail, metricDefs, inactiveKeys), [monthDetail, metricDefs, inactiveKeys])
+  const rollupMetrics = useMemo(() => buildMetricList(yearDetail,  metricDefs, inactiveKeys), [yearDetail,  metricDefs, inactiveKeys])
 
   // agentId → metricKey → scorecard row
   const detailByAgent = useMemo(() => {
@@ -217,10 +234,12 @@ export default function TeamDashboard() {
     return map
   }, [monthDetail])
 
-  // Search-filtered agents (controls visible columns)
+  // APT-78/79: Search + inactive filter
   const displayAgents = useMemo(
-    () => agents.filter((a) => !search || a.agent_name.toLowerCase().includes(search.toLowerCase())),
-    [agents, search]
+    () => agents
+      .filter((a) => showInactive || a.active !== false)
+      .filter((a) => !search || a.agent_name.toLowerCase().includes(search.toLowerCase())),
+    [agents, search, showInactive]
   )
 
   // Only show agents who have at least one actual value in the selected month
@@ -276,6 +295,25 @@ export default function TeamDashboard() {
 
   const monthLabel = monthOptions.find((m) => m.value === month)?.label ?? month
 
+  // APT-66: Team leaderboard
+  const leaderboard = useMemo(() => {
+    return activeMonthAgents
+      .map((agent) => {
+        const s = activeSummaries.find((r) => r.agent_id === agent.id)
+        return {
+          id: agent.id,
+          name: agent.agent_name,
+          rating: s?.rating_label ?? s?.score_label ?? '—',
+          onTrack: s?.on_track_count ?? 0,
+          offTrack: s?.off_track_count ?? 0,
+        }
+      })
+      .sort((a, b) => b.onTrack - a.onTrack)
+  }, [activeMonthAgents, activeSummaries])
+
+  // APT-70: Filtered quarters
+  const filteredQuarters = selectedQ === 'all' ? QUARTERS : QUARTERS.filter((q) => q.label === selectedQ)
+
   // Shared sticky-column style
   const stickyCol = { position: 'sticky', left: 0, zIndex: 1, whiteSpace: 'nowrap', minWidth: 160 }
 
@@ -312,6 +350,13 @@ export default function TeamDashboard() {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
+        </div>
+        {/* APT-78/79: Show inactive toggle */}
+        <div className="filter-group" style={{ justifyContent: 'flex-end' }}>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, cursor: 'pointer', color: '#6b7a8d', paddingTop: 18 }}>
+            <input type="checkbox" checked={showInactive} onChange={(e) => setShowInactive(e.target.checked)} />
+            Show inactive
+          </label>
         </div>
       </div>
 
@@ -354,6 +399,37 @@ export default function TeamDashboard() {
               </div>
             ))}
           </div>
+
+          {/* APT-66: Agent Leaderboard */}
+          {leaderboard.length > 0 && (
+            <>
+              <div className="section-title">Agent Leaderboard — {monthLabel}</div>
+              <div className="table-wrap" style={{ marginBottom: 20 }}>
+                <table className="sc-table">
+                  <thead>
+                    <tr>
+                      <th style={{ width: 36, textAlign: 'center' }}>#</th>
+                      <th>Agent</th>
+                      <th style={{ width: 140 }}>Rating</th>
+                      <th style={{ width: 80, textAlign: 'center' }}>On Track</th>
+                      <th style={{ width: 80, textAlign: 'center' }}>Off Track</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {leaderboard.map((row, i) => (
+                      <tr key={row.id}>
+                        <td style={{ textAlign: 'center', color: '#6b7a8d', fontWeight: 700 }}>{i + 1}</td>
+                        <td style={{ fontWeight: 500 }}>{row.name}</td>
+                        <td><span className={ratingClass(row.rating)} style={{ fontSize: 12 }}>{row.rating}</span></td>
+                        <td style={{ textAlign: 'center', fontWeight: 700, color: '#1a6e3a' }}>{row.onTrack}</td>
+                        <td style={{ textAlign: 'center', fontWeight: 700, color: '#842029' }}>{row.offTrack}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </>
+          )}
 
           {/* Monthly table — rows: metrics, columns: agents */}
           <div className="section-title">Monthly Performance — {monthLabel}</div>
@@ -403,6 +479,19 @@ export default function TeamDashboard() {
             >
               {yearOptions.map((y) => <option key={y} value={y}>{y}</option>)}
             </select>
+            {/* APT-70: Quarter filter */}
+            <select
+              className="filter-select"
+              style={{ height: 30, fontSize: 13, minWidth: 80 }}
+              value={selectedQ}
+              onChange={(e) => setSelectedQ(e.target.value)}
+            >
+              <option value="all">All Quarters</option>
+              <option value="Q1">Q1</option>
+              <option value="Q2">Q2</option>
+              <option value="Q3">Q3</option>
+              <option value="Q4">Q4</option>
+            </select>
             {yearLoading && <span style={{ fontSize: 12, color: '#6b7a8d' }}>Loading…</span>}
           </div>
 
@@ -415,14 +504,14 @@ export default function TeamDashboard() {
                   <thead>
                     <tr>
                       <th rowSpan={2} className="sticky-metric-head" style={{ ...stickyCol, background: '#f8f9fb', verticalAlign: 'bottom', zIndex: 3 }}>Metric</th>
-                      {QUARTERS.map((q) => (
+                      {filteredQuarters.map((q) => (
                         <th key={q.label} colSpan={activeYearAgents.length} className="period-th">
                           {q.label}
                         </th>
                       ))}
                     </tr>
                     <tr>
-                      {QUARTERS.map((q) =>
+                      {filteredQuarters.map((q) =>
                         activeYearAgents.map((a) => (
                           <th key={`${q.label}-${a.id}`} style={{ width: 75, minWidth: 70, textAlign: 'center', fontSize: 10 }}>
                             {a.agent_name}
@@ -437,7 +526,7 @@ export default function TeamDashboard() {
                         <td className="sticky-metric-cell" style={{ ...stickyCol, background: 'inherit' }}>
                           {metric.metric_name}
                         </td>
-                        {QUARTERS.map((q) =>
+                        {filteredQuarters.map((q) =>
                           activeYearAgents.map((agent) => (
                             <PeriodMetricCell
                               key={`${q.label}-${agent.id}`}

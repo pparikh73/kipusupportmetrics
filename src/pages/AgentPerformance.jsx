@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import {
   getTeams, getAgents,
-  getMetricDefinitions, getScorecard, getScorecardYear,
+  getAllMetricDefinitions, getScorecard, getScorecardYear,
   getSummary, getAgentMonthNote, upsertAgentMonthNote,
 } from '../lib/api'
 import { formatValue, statusLabel, statusClass, ratingClass } from '../lib/format'
@@ -82,12 +82,12 @@ function mergeMetrics(configuredList, viewRows) {
 }
 
 // Build display metric list from view rows (primary) + metricDefs (fallback for no-data rows).
-// This ensures metrics that exist in the view but not in metrics_definitions still appear.
-function buildMetricList(viewRows, fallbackDefs) {
+// inactiveKeys: Set of metric_key strings to skip from view rows.
+function buildMetricList(viewRows, fallbackDefs, inactiveKeys = new Set()) {
   const seen = new Set()
   const list = []
   viewRows.forEach((r) => {
-    if (!seen.has(r.metric_key)) {
+    if (!seen.has(r.metric_key) && !inactiveKeys.has(r.metric_key)) {
       seen.add(r.metric_key)
       list.push({
         metric_key: r.metric_key,
@@ -194,6 +194,13 @@ function RollupTable({ title, periods, configuredMetrics, yearDetail }) {
   )
 }
 
+// ── localStorage helpers ──────────────────────────────────────────────────────
+
+function loadPref(key, fallback) {
+  try { const v = localStorage.getItem(key); return v !== null ? v : fallback } catch { return fallback }
+}
+function savePref(key, val) { try { localStorage.setItem(key, val) } catch {} }
+
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export default function AgentPerformance() {
@@ -202,12 +209,19 @@ export default function AgentPerformance() {
 
   const [teams, setTeams]   = useState([])
   const [agents, setAgents] = useState([])
-  const [metricDefs, setMetricDefs] = useState([])
+  const [allDefs, setAllDefs] = useState([])
 
-  const [teamId, setTeamId]   = useState('')
-  const [agentId, setAgentId] = useState('')
-  const [year, setYear]       = useState(String(now.getFullYear()))
-  const [selMonth, setSelMonth] = useState(String(now.getMonth() + 1).padStart(2, '0'))
+  // APT-61: Persistent filters
+  const [teamId, setTeamId]   = useState(() => loadPref('ktp_ap_team', ''))
+  const [agentId, setAgentId] = useState(() => loadPref('ktp_ap_agent', ''))
+  const [year, setYear]       = useState(() => loadPref('ktp_ap_year', String(now.getFullYear())))
+  const [selMonth, setSelMonth] = useState(() => loadPref('ktp_ap_month', String(now.getMonth() + 1).padStart(2, '0')))
+
+  // APT-41: Period view tabs
+  const [viewMode, setViewMode] = useState(() => loadPref('ktp_ap_view', 'monthly'))
+
+  // APT-78/79: Show/hide inactive agents
+  const [showInactive, setShowInactive] = useState(false)
 
   const [monthDetail, setMonthDetail] = useState([])
   const [summary, setSummary]         = useState(null)
@@ -216,16 +230,35 @@ export default function AgentPerformance() {
   const [savedNote, setSavedNote]     = useState('')
   const [noteSaving, setNoteSaving]   = useState(false)
   const [noteMsg, setNoteMsg]         = useState('')
+  // APT-91: created_at for notes
+  const [noteCreatedAt, setNoteCreatedAt] = useState(null)
 
   const [loading, setLoading]         = useState(false)
   const [yearLoading, setYearLoading] = useState(false)
   const [error, setError]             = useState('')
 
-  // Load reference data once
+  // APT-61: Save filter prefs
+  useEffect(() => savePref('ktp_ap_team', teamId), [teamId])
+  useEffect(() => savePref('ktp_ap_agent', agentId), [agentId])
+  useEffect(() => savePref('ktp_ap_year', year), [year])
+  useEffect(() => savePref('ktp_ap_month', selMonth), [selMonth])
+  useEffect(() => savePref('ktp_ap_view', viewMode), [viewMode])
+
+  // APT-65: Load all metric definitions (active + inactive)
   useEffect(() => {
     getTeams().then(setTeams).catch((e) => setError(e.message))
-    getMetricDefinitions().then(setMetricDefs).catch((e) => setError(e.message))
+    getAllMetricDefinitions().then(setAllDefs).catch((e) => setError(e.message))
   }, [])
+
+  // APT-65: Derive active metricDefs and inactiveKeys
+  const metricDefs = useMemo(() => allDefs.filter((d) => d.active), [allDefs])
+  const inactiveKeys = useMemo(() => new Set(allDefs.filter((d) => !d.active).map((d) => d.metric_key)), [allDefs])
+
+  // APT-78/79: Visible agents in dropdown (filter inactive unless toggled)
+  const visibleAgents = useMemo(
+    () => showInactive ? agents : agents.filter((a) => a.active !== false),
+    [agents, showInactive]
+  )
 
   // Reload agents when team filter changes
   useEffect(() => {
@@ -252,6 +285,7 @@ export default function AgentPerformance() {
         const t = noteRow?.note_text ?? ''
         setNote(t)
         setSavedNote(t)
+        setNoteCreatedAt(noteRow?.created_at ?? null)
       })
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false))
@@ -279,6 +313,7 @@ export default function AgentPerformance() {
       })
       setSavedNote(note)
       setNoteMsg('Saved.')
+      if (!noteCreatedAt) setNoteCreatedAt(new Date().toISOString())
       setTimeout(() => setNoteMsg(''), 3000)
     } catch (e) {
       setNoteMsg('Error: ' + e.message)
@@ -287,13 +322,12 @@ export default function AgentPerformance() {
     }
   }
 
-  // Build display metric list: view data is the primary source so metrics that exist in
-  // metrics_vw_ab_scorecard but not in metrics_definitions (or are inactive there) still appear.
-  const displayMetrics = useMemo(() => buildMetricList(monthDetail, metricDefs), [monthDetail, metricDefs])
-  const rollupMetrics  = useMemo(() => buildMetricList(yearDetail,  metricDefs), [yearDetail,  metricDefs])
+  // APT-65: Build display metric list with inactiveKeys filter
+  const allMetrics    = useMemo(() => buildMetricList(monthDetail, metricDefs, inactiveKeys), [monthDetail, metricDefs, inactiveKeys])
+  const rollupMetrics = useMemo(() => buildMetricList(yearDetail,  metricDefs, inactiveKeys), [yearDetail,  metricDefs, inactiveKeys])
 
   // Merge produces a row for every display metric (placeholder when agent has no data for it)
-  const allRows = mergeMetrics(displayMetrics, monthDetail)
+  const allRows = mergeMetrics(allMetrics, monthDetail)
 
   const selectedMonthLabel = MONTH_OPTIONS.find((m) => m.value === selMonth)?.label ?? selMonth
 
@@ -302,6 +336,28 @@ export default function AgentPerformance() {
   const onTrackCount = summary?.on_track_count ?? '—'
   const offTrackCount = summary?.off_track_count ?? '—'
   const withDataCount = summary?.scored_with_data ?? summary?.scoring_metrics_with_data ?? summary?.metrics_with_data ?? '—'
+
+  // APT-49: YTD computed data
+  const ytdData = useMemo(() => {
+    const curMonth = new Date().getMonth() + 1
+    const ytdRows = yearDetail.filter((r) => {
+      const m = parseInt(r.metric_month.slice(5, 7), 10)
+      return m <= curMonth && r.actual_value != null
+    })
+    return rollupMetrics.map((metric) => {
+      const rows = ytdRows.filter((r) => r.metric_key === metric.metric_key)
+      if (!rows.length) return { ...metric, actual: null, status: 'no_data' }
+      const actual = computePeriodActual(rows, metric.unit_type)
+      const refRow = [...rows].sort((a, b) => b.metric_month.localeCompare(a.metric_month))[0]
+      return { ...metric, actual, status: deriveStatus(actual, refRow) }
+    })
+  }, [yearDetail, rollupMetrics])
+
+  // APT-50: Trend months
+  const trendMonths = useMemo(() => {
+    const months = [...new Set(yearDetail.map((r) => r.metric_month))].sort()
+    return months
+  }, [yearDetail])
 
   return (
     <div className="page">
@@ -326,7 +382,7 @@ export default function AgentPerformance() {
           <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
             <select className="filter-select" value={agentId} onChange={(e) => setAgentId(e.target.value)}>
               <option value="">Select Agent</option>
-              {agents.map((a) => <option key={a.id} value={a.id}>{a.agent_name}</option>)}
+              {visibleAgents.map((a) => <option key={a.id} value={a.id}>{a.agent_name}</option>)}
             </select>
             {agentId && (
               <Link
@@ -351,6 +407,13 @@ export default function AgentPerformance() {
           <select className="filter-select" value={selMonth} onChange={(e) => setSelMonth(e.target.value)}>
             {MONTH_OPTIONS.map((m) => <option key={m.value} value={m.value}>{m.label}</option>)}
           </select>
+        </div>
+        {/* APT-78/79: Show inactive toggle */}
+        <div className="filter-group" style={{ justifyContent: 'flex-end' }}>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, cursor: 'pointer', color: '#6b7a8d', paddingTop: 18 }}>
+            <input type="checkbox" checked={showInactive} onChange={(e) => setShowInactive(e.target.checked)} />
+            Show inactive
+          </label>
         </div>
       </div>
 
@@ -387,46 +450,159 @@ export default function AgentPerformance() {
             </div>
           </div>
 
-          {/* All metrics */}
-          <div className="section-title">Metrics — {selectedMonthLabel} {year}</div>
-          <div className="table-wrap">
-            <table className="sc-table">
-              <thead>
-                <tr>
-                  <th style={{ minWidth: 160 }}>Metric</th>
-                  <th style={{ width: 90, textAlign: 'right' }}>Actual</th>
-                  <th style={{ width: 80, textAlign: 'right' }}>Goal</th>
-                  <th style={{ width: 80, textAlign: 'right' }}>Tolerance</th>
-                  <th style={{ width: 100 }}>Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {allRows.map((r) => <MetricRow key={r.metric_key} row={r} />)}
-              </tbody>
-            </table>
+          {/* APT-41: Period view tabs */}
+          <div style={{ display: 'flex', borderBottom: '2px solid #e2e6ea', marginBottom: 20 }}>
+            {[
+              { key: 'monthly', label: 'Monthly' },
+              { key: 'quarterly', label: 'Quarterly' },
+              { key: 'halfyear', label: 'Half-Year' },
+              { key: 'ytd', label: 'YTD' },
+              { key: 'trend', label: 'Trend' },
+            ].map(({ key, label }) => (
+              <button
+                key={key}
+                onClick={() => setViewMode(key)}
+                style={{
+                  padding: '8px 18px', border: 'none', background: 'none', cursor: 'pointer',
+                  fontSize: 13, fontWeight: viewMode === key ? 700 : 400,
+                  color: viewMode === key ? '#4a90e2' : '#6b7a8d',
+                  borderBottom: viewMode === key ? '2px solid #4a90e2' : '2px solid transparent',
+                  marginBottom: -2,
+                }}
+              >
+                {label}
+              </button>
+            ))}
           </div>
 
-          {/* Rollup tables */}
-          {yearLoading ? (
-            <div className="loading">Loading annual data…</div>
-          ) : (
+          {/* Monthly view */}
+          {viewMode === 'monthly' && (
             <>
+              <div className="section-title">Metrics — {selectedMonthLabel} {year}</div>
+              <div className="table-wrap">
+                <table className="sc-table">
+                  <thead>
+                    <tr>
+                      <th style={{ minWidth: 160 }}>Metric</th>
+                      <th style={{ width: 90, textAlign: 'right' }}>Actual</th>
+                      <th style={{ width: 80, textAlign: 'right' }}>Goal</th>
+                      <th style={{ width: 80, textAlign: 'right' }}>Tolerance</th>
+                      <th style={{ width: 100 }}>Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {allRows.map((r) => <MetricRow key={r.metric_key} row={r} />)}
+                  </tbody>
+                </table>
+              </div>
+            </>
+          )}
+
+          {/* Quarterly view */}
+          {viewMode === 'quarterly' && (
+            yearLoading ? (
+              <div className="loading">Loading annual data…</div>
+            ) : (
               <RollupTable
                 title={`Quarterly Performance — ${year}`}
                 periods={QUARTERS}
                 configuredMetrics={rollupMetrics}
                 yearDetail={yearDetail}
               />
+            )
+          )}
+
+          {/* Half-Year view */}
+          {viewMode === 'halfyear' && (
+            yearLoading ? (
+              <div className="loading">Loading annual data…</div>
+            ) : (
               <RollupTable
                 title={`Half-Year Performance — ${year}`}
                 periods={HALVES}
                 configuredMetrics={rollupMetrics}
                 yearDetail={yearDetail}
               />
+            )
+          )}
+
+          {/* APT-49: YTD view */}
+          {viewMode === 'ytd' && (
+            <>
+              <div className="section-title">Year to Date — {year}</div>
+              {yearLoading ? <div className="loading">Loading…</div> : (
+                <div className="table-wrap">
+                  <table className="sc-table">
+                    <thead>
+                      <tr>
+                        <th style={{ minWidth: 160 }}>Metric</th>
+                        <th style={{ width: 90, textAlign: 'right' }}>YTD Actual</th>
+                        <th style={{ width: 80, textAlign: 'right' }}>Goal</th>
+                        <th style={{ width: 100 }}>Status</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {ytdData.map((row) => (
+                        <tr key={row.metric_key}>
+                          <td style={{ fontWeight: 500 }}>{row.metric_name}</td>
+                          <td style={{ textAlign: 'right', fontWeight: row.actual != null ? 600 : 400, color: row.actual != null ? '#1a1a2e' : '#adb5bd' }}>
+                            {row.actual != null ? formatValue(row.actual, row.unit_type) : '—'}
+                          </td>
+                          <td style={{ textAlign: 'right', color: '#6b7a8d' }}>
+                            {row.goal_value != null ? formatValue(row.goal_value, row.unit_type) : '—'}
+                          </td>
+                          <td><StatusCell status={row.status} /></td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </>
           )}
 
-          {/* Supervisor Note */}
+          {/* APT-50: Trend view */}
+          {viewMode === 'trend' && (
+            <>
+              <div className="section-title">Monthly Trend — {year}</div>
+              {yearLoading ? <div className="loading">Loading…</div> : (
+                <div className="table-wrap">
+                  <table className="sc-table">
+                    <thead>
+                      <tr>
+                        <th className="sticky-metric-head" style={{ minWidth: 160, position: 'sticky', left: 0, zIndex: 2 }}>Metric</th>
+                        {trendMonths.map((m) => (
+                          <th key={m} className="period-th" style={{ minWidth: 70, width: 70, textAlign: 'center' }}>
+                            {new Date(m + '-02').toLocaleString('default', { month: 'short' })}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {rollupMetrics.map((metric) => (
+                        <tr key={metric.metric_key}>
+                          <td className="sticky-metric-cell" style={{ position: 'sticky', left: 0, background: 'inherit', fontWeight: 500 }}>
+                            {metric.metric_name}
+                          </td>
+                          {trendMonths.map((m) => {
+                            const row = yearDetail.find((r) => r.metric_key === metric.metric_key && r.metric_month === m)
+                            const val = row?.actual_value
+                            return (
+                              <td key={m} style={{ textAlign: 'center', color: val != null ? '#1a1a2e' : '#d1d5db', fontWeight: val != null ? 600 : 400 }}>
+                                {val != null ? formatValue(val, metric.unit_type) : '—'}
+                              </td>
+                            )
+                          })}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </>
+          )}
+
+          {/* APT-91: Supervisor Note — always visible */}
           <div className="card">
             <div className="card-title">Supervisor Note — {selectedMonthLabel} {year}</div>
             <textarea
@@ -451,6 +627,11 @@ export default function AgentPerformance() {
                 </span>
               )}
             </div>
+            {noteCreatedAt && (
+              <div style={{ fontSize: 11, color: '#9ca3af', marginTop: 6 }}>
+                Note created: {new Date(noteCreatedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+              </div>
+            )}
           </div>
         </>
       )}

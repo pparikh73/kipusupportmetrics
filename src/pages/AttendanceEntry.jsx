@@ -4,7 +4,7 @@ import {
   getAttendanceCodes, getAttendanceDaily,
   upsertAttendance, deleteAttendance,
 } from '../lib/api'
-import { currentMonth, recentMonths } from '../lib/format'
+
 import Modal from '../components/Modal'
 
 // ── Date helpers ──────────────────────────────────────────────────────────────
@@ -90,14 +90,34 @@ function colHeaderBg(day, iso, holidayIsos) {
 // ── Main page ─────────────────────────────────────────────────────────────────
 
 export default function AttendanceEntry() {
-  const months = recentMonths(18)
-
   const [teams, setTeams]   = useState([])
   const [agents, setAgents] = useState([])
   const [codes, setCodes]   = useState([])
 
-  const [month, setMonth]     = useState(currentMonth())
+  // APT-82: Split month picker into year + month dropdowns
+  const [attYear, setAttYear] = useState(() => {
+    try { return localStorage.getItem('ktp_att_year') || String(new Date().getFullYear()) } catch { return String(new Date().getFullYear()) }
+  })
+  const [attMonth, setAttMonth] = useState(() => {
+    try { return localStorage.getItem('ktp_att_month') || String(new Date().getMonth() + 1) } catch { return String(new Date().getMonth() + 1) }
+  })
+  const month = `${attYear}-${String(attMonth).padStart(2, '0')}`
+
+  const attYearOptions = useMemo(() => {
+    const cur = new Date().getFullYear()
+    return [cur - 1, cur, cur + 1].map(String)
+  }, [])
+  const attMonthOptions = [
+    { value: '1', label: 'January' }, { value: '2', label: 'February' }, { value: '3', label: 'March' },
+    { value: '4', label: 'April' }, { value: '5', label: 'May' }, { value: '6', label: 'June' },
+    { value: '7', label: 'July' }, { value: '8', label: 'August' }, { value: '9', label: 'September' },
+    { value: '10', label: 'October' }, { value: '11', label: 'November' }, { value: '12', label: 'December' },
+  ]
+
   const [groupId, setGroupId] = useState('')
+
+  // APT-86: Show/hide inactive agents
+  const [showInactiveAgents, setShowInactiveAgents] = useState(false)
 
   const [savedMap, setSavedMap]     = useState({})  // agentId:dateISO → db row
   const [pendingMap, setPendingMap] = useState({})  // agentId:dateISO → { codeId, notes } | null
@@ -121,9 +141,8 @@ export default function AttendanceEntry() {
 
   // ── Derived constants ───────────────────────────────────────────────────────
 
-  const [yearNum, monthNum] = month.split('-').map(Number)
   const allDays    = useMemo(() => getAllDays(month), [month])
-  const holidays   = useMemo(() => getUSHolidays(yearNum, monthNum), [yearNum, monthNum])
+  const holidays   = useMemo(() => getUSHolidays(Number(attYear), Number(attMonth)), [attYear, attMonth])
   const holidayIsos = useMemo(() => new Set(holidays.map((h) => h.iso)), [holidays])
 
   const codesById = useMemo(() => {
@@ -148,6 +167,12 @@ export default function AttendanceEntry() {
   }, [savedMap, pendingMap, codesById])
 
   const pendingCount = Object.keys(pendingMap).length
+
+  // APT-86: Filtered agents for display
+  const displayAgents = useMemo(
+    () => showInactiveAgents ? agents : agents.filter((a) => a.active !== false),
+    [agents, showInactiveAgents]
+  )
 
   // ── Data loading ────────────────────────────────────────────────────────────
 
@@ -314,10 +339,10 @@ export default function AttendanceEntry() {
   }
 
   function toggleAllAgents() {
-    if (selectedAgentIds.size === agents.length) {
+    if (selectedAgentIds.size === displayAgents.length) {
       setSelectedAgentIds(new Set())
     } else {
-      setSelectedAgentIds(new Set(agents.map((a) => a.id)))
+      setSelectedAgentIds(new Set(displayAgents.map((a) => a.id)))
     }
   }
 
@@ -342,10 +367,17 @@ export default function AttendanceEntry() {
 
       {/* Filter bar */}
       <div className="filter-bar">
+        {/* APT-82: Year + Month dropdowns */}
+        <div className="filter-group">
+          <label className="filter-label">Year</label>
+          <select className="filter-select" style={{ minWidth: 90 }} value={attYear} onChange={(e) => { setAttYear(e.target.value); try { localStorage.setItem('ktp_att_year', e.target.value) } catch {} }}>
+            {attYearOptions.map((y) => <option key={y} value={y}>{y}</option>)}
+          </select>
+        </div>
         <div className="filter-group">
           <label className="filter-label">Month</label>
-          <select className="filter-select" value={month} onChange={(e) => setMonth(e.target.value)}>
-            {months.map((m) => <option key={m.value} value={m.value}>{m.label}</option>)}
+          <select className="filter-select" value={attMonth} onChange={(e) => { setAttMonth(e.target.value); try { localStorage.setItem('ktp_att_month', e.target.value) } catch {} }}>
+            {attMonthOptions.map((m) => <option key={m.value} value={m.value}>{m.label}</option>)}
           </select>
         </div>
         <div className="filter-group">
@@ -354,6 +386,13 @@ export default function AttendanceEntry() {
             <option value="">All Teams</option>
             {teams.map((t) => <option key={t.id} value={t.id}>{t.group_name}</option>)}
           </select>
+        </div>
+        {/* APT-86: Show inactive agents toggle */}
+        <div className="filter-group" style={{ justifyContent: 'flex-end' }}>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, cursor: 'pointer', color: '#6b7a8d', paddingTop: 18 }}>
+            <input type="checkbox" checked={showInactiveAgents} onChange={(e) => setShowInactiveAgents(e.target.checked)} />
+            Show inactive
+          </label>
         </div>
       </div>
 
@@ -438,7 +477,7 @@ export default function AttendanceEntry() {
         </div>
       )}
 
-      {agents.length === 0 && !loading && (
+      {displayAgents.length === 0 && !loading && (
         <div className="empty-state">
           <h3>No assigned agents found</h3>
           <p>Select an organization or group to see agents.</p>
@@ -447,7 +486,7 @@ export default function AttendanceEntry() {
 
       {loading && <div className="loading">Loading…</div>}
 
-      {!loading && agents.length > 0 && (
+      {!loading && displayAgents.length > 0 && (
         <div className="att-grid" style={{ overflowX: 'auto' }}>
           <table style={{ fontSize: 11, borderCollapse: 'collapse', minWidth: 600 }}>
             <thead>
@@ -456,7 +495,7 @@ export default function AttendanceEntry() {
                 <th style={{ padding: '4px 6px', textAlign: 'left', minWidth: 30, background: '#f8f9fb', position: 'sticky', left: 0, zIndex: 2 }}>
                   <input
                     type="checkbox"
-                    checked={agents.length > 0 && selectedAgentIds.size === agents.length}
+                    checked={displayAgents.length > 0 && selectedAgentIds.size === displayAgents.length}
                     onChange={toggleAllAgents}
                     title="Select all agents"
                   />
@@ -490,7 +529,7 @@ export default function AttendanceEntry() {
               </tr>
             </thead>
             <tbody>
-              {agents.map((agent) => {
+              {displayAgents.map((agent) => {
                 const pct = calcPct(agent.id)
                 const rowSelected = selectedAgentIds.has(agent.id)
                 return (
@@ -567,7 +606,7 @@ export default function AttendanceEntry() {
       )}
 
       {/* Legend */}
-      {!loading && agents.length > 0 && (
+      {!loading && displayAgents.length > 0 && (
         <div style={{ display: 'flex', gap: 16, marginTop: 8, fontSize: 11, color: '#6b7a8d', flexWrap: 'wrap' }}>
           <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
             <span style={{ width: 14, height: 14, background: '#f3f4f6', border: '1px solid #e2e6ea', borderRadius: 2, display: 'inline-block' }} /> Weekend
