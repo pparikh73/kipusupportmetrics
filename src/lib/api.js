@@ -115,6 +115,24 @@ export async function upsertTeamAssignment(row) {
   return data
 }
 
+export async function getAgentTeamAssignments(agentId) {
+  const { data, error } = await supabase
+    .from('metrics_agent_group_assignments')
+    .select('*, metrics_groups(group_name)')
+    .eq('agent_id', agentId)
+    .order('effective_start_month', { ascending: false })
+  if (error) throw error
+  return data
+}
+
+export async function deleteTeamAssignment(id) {
+  const { error } = await supabase
+    .from('metrics_agent_group_assignments')
+    .delete()
+    .eq('id', id)
+  if (error) throw error
+}
+
 // ── Metric Definitions (metrics_definitions) ──────────────────────────────────
 
 export async function getMetricDefinitions() {

@@ -120,3 +120,8 @@ tbody tr:hover td { background: #eef2ff !important; }
 .att-cell-btn { width: 100%; min-width: 44px; padding: 3px 2px; border: 1px solid #e2e6ea; border-radius: 4px; background: #f8f9fb; font-size: 11px; cursor: pointer; text-align: center; color: #adb5bd; }
 .att-cell-btn:hover { background: #e8f0fd; border-color: #4a90e2; color: #1a1a2e; }
 .att-cell-btn.filled { background: #dbeafe; border-color: #93c5fd; font-weight: 600; color: #1e40af; }
+
+/* ── Collapsible sidebar ─────────────────────────────────────────────────────── */
+.sidebar-collapsed { width: 44px !important; overflow: hidden; }
+.sidebar-toggle { background: none; border: none; color: #7a9bb5; cursor: pointer; font-size: 13px; padding: 4px 6px; border-radius: 4px; line-height: 1; flex-shrink: 0; }
+.sidebar-toggle:hover { background: rgba(255,255,255,0.1); color: #fff; }

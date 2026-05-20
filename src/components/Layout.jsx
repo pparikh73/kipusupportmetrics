@@ -1,4 +1,5 @@
 import { NavLink } from 'react-router-dom'
+import { useState } from 'react'
 
 const NAV = [
   {
@@ -33,31 +34,49 @@ const NAV = [
   },
 ]
 
+function getSidebarPref() {
+  try { return localStorage.getItem('ktp_sidebar') !== 'closed' } catch { return true }
+}
+
 export default function Layout({ children }) {
+  const [open, setOpen] = useState(getSidebarPref)
+
+  function toggle() {
+    const next = !open
+    setOpen(next)
+    try { localStorage.setItem('ktp_sidebar', next ? 'open' : 'closed') } catch {}
+  }
+
   return (
     <div className="app-shell">
-      <nav className="sidebar">
+      <nav className={`sidebar${open ? '' : ' sidebar-collapsed'}`}>
         <div className="sidebar-logo">
-          Kipu Tracker
-          <span>Support Performance</span>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: open ? 'space-between' : 'center' }}>
+            {open && <div>Kipu Tracker<span>Support Performance</span></div>}
+            <button className="sidebar-toggle" onClick={toggle} title={open ? 'Collapse' : 'Expand'}>
+              {open ? '◀' : '▶'}
+            </button>
+          </div>
         </div>
-        <div className="sidebar-nav">
-          {NAV.map((section) => (
-            <div className="nav-group" key={section.group}>
-              <div className="nav-label">{section.group}</div>
-              {section.items.map((item) => (
-                <NavLink
-                  key={item.to}
-                  to={item.to}
-                  end={item.to === '/' || item.to === '/attendance'}
-                  className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}
-                >
-                  {item.label}
-                </NavLink>
-              ))}
-            </div>
-          ))}
-        </div>
+        {open && (
+          <div className="sidebar-nav">
+            {NAV.map((section) => (
+              <div className="nav-group" key={section.group}>
+                <div className="nav-label">{section.group}</div>
+                {section.items.map((item) => (
+                  <NavLink
+                    key={item.to}
+                    to={item.to}
+                    end={item.to === '/' || item.to === '/attendance'}
+                    className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}
+                  >
+                    {item.label}
+                  </NavLink>
+                ))}
+              </div>
+            ))}
+          </div>
+        )}
       </nav>
       <main className="main-content">
         {children}
