@@ -30,8 +30,8 @@
 | `[✅]` | APT-37 | Add color coding to ratings (already applied via ratingClass) | Agent Perf |
 | `[✅]` | APT-43 | Add color coding to ratings (already applied via ratingClass) | Team Dashboard |
 | `[✓]` | APT-59 | Link agent name to admin profile (Profile → button; opens edit modal) | Agent Perf |
-| `[ ]` | APT-65 | Remove the outbound call column — needs metric deactivated in Admin > Metrics first, then buildMetricList filter update | Agent Perf |
-| `[ ]` | APT-71 | Remove the outbound call column — same as APT-65 | Team Dashboard |
+| `[✓]` | APT-65 | Remove the outbound call column — needs metric deactivated in Admin > Metrics first, then buildMetricList filter update | Agent Perf |
+| `[✓]` | APT-71 | Remove the outbound call column — same as APT-65 | Team Dashboard |
 
 ### S — 1–3 hours each
 
@@ -41,37 +41,37 @@
 | `[ ]` | APT-40 | Show goal, actual, tolerance, and status for each metric | Agent Perf |
 | `[ ]` | APT-31 | Show goal, actual, tolerance, and status for each metric | Agent Perf |
 | `[ ]` | APT-44 | Show overall rating in the 1:1 view header | Team Dashboard |
-| `[ ]` | APT-46 | Show goal, actual, tolerance, and status for each metric | Team Dashboard |
-| `[ ]` | APT-60 | Make the left panel collapsible | All |
-| `[ ]` | APT-61 | Keep filters persistent across tabs | All |
+| `[✓]` | APT-46 | Show goal, actual, tolerance, and status for each metric | Team Dashboard |
+| `[✅]` | APT-60 | Make the left panel collapsible | All |
+| `[✓]` | APT-61 | Keep filters persistent across tabs | All |
 | `[ ]` | APT-62 | Use the full screen width | All |
 | `[ ]` | APT-68 | Show the rating distribution | Team Dashboard |
 | `[ ]` | APT-69 | Fix supervisors showing under Leadership | Team Dashboard |
-| `[ ]` | APT-70 | Clean up the quarterly view (dropdown, separators) | Team Dashboard |
+| `[✓]` | APT-70 | Clean up the quarterly view (dropdown, separators) | Team Dashboard |
 | `[ ]` | APT-72 | Add active/inactive toggle for agents | Admin |
-| `[ ]` | APT-74 | Separate role and team into dropdowns | Admin |
-| `[ ]` | APT-78 | Hide inactive agents from dashboards | Agent Perf / Team |
-| `[ ]` | APT-79 | Add an active/inactive filter | Agent Perf / Team |
-| `[ ]` | APT-82 | Add year and month dropdowns to attendance | Attendance |
+| `[✓]` | APT-74 | Separate role and team into dropdowns | Admin |
+| `[✓]` | APT-78 | Hide inactive agents from dashboards | Agent Perf / Team |
+| `[✓]` | APT-79 | Add an active/inactive filter | Agent Perf / Team |
+| `[✓]` | APT-82 | Add year and month dropdowns to attendance | Attendance |
 | `[ ]` | APT-85 | Fix bulk apply to selected agents | Attendance |
-| `[ ]` | APT-86 | Hide inactive agents from attendance | Attendance |
+| `[✓]` | APT-86 | Hide inactive agents from attendance | Attendance |
 | `[ ]` | APT-89 | Add a notes field to the agent view | Agent Perf |
-| `[ ]` | APT-91 | Auto-fill Created Date on notes (created_at already in DB) | Notes |
+| `[✓]` | APT-91 | Auto-fill Created Date on notes (created_at already in DB) | Notes |
 
 ### M — 3–8 hours each
 
 | Status | APT | Task | Area |
 |--------|-----|------|------|
 | `[ ]` | APT-36 | Build the rating calculation logic | Agent Perf |
-| `[ ]` | APT-41 | Add the time period toggle | Agent Perf |
+| `[✓]` | APT-41 | Add the time period toggle | Agent Perf |
 | `[ ]` | APT-42 | Build the rating calculation logic | Team Dashboard |
 | `[ ]` | APT-47 | Add team-first selection with recalculation | Agent Perf |
-| `[ ]` | APT-48 | Add the time period toggle | Team Dashboard |
-| `[ ]` | APT-49 | Add a YTD summary view | Agent Perf / Team |
-| `[ ]` | APT-50 | Add a monthly trend breakdown | Agent Perf |
+| `[✓]` | APT-48 | Add the time period toggle | Team Dashboard |
+| `[✓]` | APT-49 | Add a YTD summary view | Agent Perf / Team |
+| `[✓]` | APT-50 | Add a monthly trend breakdown | Agent Perf |
 | `[ ]` | APT-64 | Add team-first selection with recalculation | Team Dashboard |
-| `[ ]` | APT-66 | Add a team leaderboard | Team Dashboard |
-| `[ ]` | APT-75 | Merge team assignments into the agent profile | Admin |
+| `[✓]` | APT-66 | Add a team leaderboard | Team Dashboard |
+| `[✓]` | APT-75 | Merge team assignments into the agent profile | Admin |
 | `[ ]` | APT-83 | Add an All Months bulk option | Attendance |
 | `[ ]` | APT-84 | Allow bulk holiday application | Attendance |
 
@@ -124,7 +124,23 @@
 |-----|-------------|
 | APT-35 | Open Agent Perf, pick any agent — percentages like Call Acceptance should now show as whole numbers (e.g. 85% not 85.19%) |
 | APT-59 | Select an agent → a **Profile →** button appears next to the dropdown → click it → opens Admin Agents with that agent's edit modal already open |
+| APT-41 | Agent Perf → pick agent → tabs appear: Monthly / Quarterly / Half-Year / YTD / Trend — click each and verify data |
+| APT-46 | Team Dashboard → monthly table cells should show small "Goal: X" sub-text below the actual value |
+| APT-48 | Team Dashboard → quarterly and half-year tables appear in the rollup section |
+| APT-49 | Agent Perf → YTD tab → shows aggregated actuals through current month |
+| APT-50 | Agent Perf → Trend tab → shows one column per month with values |
+| APT-61 | Change any filter (team, month, year), navigate away, come back — filter should be remembered |
+| APT-65 | Go to Admin > Metrics, deactivate "Outbound Calls" — it should disappear from Agent Perf metric tables |
+| APT-66 | Team Dashboard → leaderboard table appears above the monthly performance table |
+| APT-70 | Team Dashboard → quarter dropdown (All Quarters / Q1–Q4) appears next to rollup year selector |
+| APT-71 | Same as APT-65 but for Team Dashboard |
+| APT-74 | Admin > Agents → Edit any agent → Role field is now a dropdown with predefined options |
+| APT-75 | Admin > Agents → Edit any agent → Team Assignments section shows at bottom of modal with add/remove |
+| APT-78/79 | Agent Perf and Team Dashboard → "Show inactive" checkbox in filter bar hides/shows inactive agents |
+| APT-82 | Attendance Entry → Month picker is now two dropdowns: Year and Month separately |
+| APT-86 | Attendance Entry → "Show inactive" checkbox; inactive agents hidden by default |
+| APT-91 | Agent Perf → save a note → a "Note created: [date]" line appears below the Save button |
 
 ---
 
-_Last updated: 2026-05-20 — APT-35, APT-59 pushed for review; APT-37, APT-43 marked complete (already implemented)_
+_Last updated: 2026-05-20 — Group 1 S+M batch pushed; APT-41,46,48,49,50,61,65,66,70,71,74,75,78,79,82,86,91 ready for review_
