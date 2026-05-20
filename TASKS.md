@@ -26,12 +26,12 @@
 |--------|-----|------|------|
 | `[✅]` | APT-76 | Merge the two metrics sections into one | Agent Perf |
 | `[✅]` | APT-67 | Filter out inactive agents (monthly + Q/H tables) — Team Dashboard only; Agent Perf filter is APT-79 | Team Dashboard |
-| `[ ]` | APT-35 | Standardize number rounding (e.g. 85% not 85.19%) | All |
-| `[ ]` | APT-37 | Add color coding to ratings | Agent Perf |
-| `[ ]` | APT-43 | Add color coding to ratings | Team Dashboard |
-| `[ ]` | APT-59 | Link agent name to admin profile | Agent Perf |
-| `[ ]` | APT-65 | Remove the outbound call column | Agent Perf |
-| `[ ]` | APT-71 | Remove the outbound call column | Team Dashboard |
+| `[✓]` | APT-35 | Standardize number rounding (e.g. 85% not 85.19%) | All |
+| `[✅]` | APT-37 | Add color coding to ratings (already applied via ratingClass) | Agent Perf |
+| `[✅]` | APT-43 | Add color coding to ratings (already applied via ratingClass) | Team Dashboard |
+| `[✓]` | APT-59 | Link agent name to admin profile (Profile → button; opens edit modal) | Agent Perf |
+| `[ ]` | APT-65 | Remove the outbound call column — needs metric deactivated in Admin > Metrics first, then buildMetricList filter update | Agent Perf |
+| `[ ]` | APT-71 | Remove the outbound call column — same as APT-65 | Team Dashboard |
 
 ### S — 1–3 hours each
 
@@ -120,10 +120,11 @@
 
 ## Recently Pushed — Needs Testing
 
-> Items I've pushed and am waiting for you to test. I'll update this section after each push.
-
-Nothing pending right now.
+| APT | What to test |
+|-----|-------------|
+| APT-35 | Open Agent Perf, pick any agent — percentages like Call Acceptance should now show as whole numbers (e.g. 85% not 85.19%) |
+| APT-59 | Select an agent → a **Profile →** button appears next to the dropdown → click it → opens Admin Agents with that agent's edit modal already open |
 
 ---
 
-_Last updated: 2026-05-20_
+_Last updated: 2026-05-20 — APT-35, APT-59 pushed for review; APT-37, APT-43 marked complete (already implemented)_

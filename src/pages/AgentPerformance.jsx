@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react'
+import { Link } from 'react-router-dom'
 import {
   getTeams, getAgents,
   getMetricDefinitions, getScorecard, getScorecardYear,
@@ -322,10 +323,22 @@ export default function AgentPerformance() {
         </div>
         <div className="filter-group">
           <label className="filter-label">Agent</label>
-          <select className="filter-select" value={agentId} onChange={(e) => setAgentId(e.target.value)}>
-            <option value="">Select Agent</option>
-            {agents.map((a) => <option key={a.id} value={a.id}>{a.agent_name}</option>)}
-          </select>
+          <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+            <select className="filter-select" value={agentId} onChange={(e) => setAgentId(e.target.value)}>
+              <option value="">Select Agent</option>
+              {agents.map((a) => <option key={a.id} value={a.id}>{a.agent_name}</option>)}
+            </select>
+            {agentId && (
+              <Link
+                to={`/admin/agents?agent=${agentId}`}
+                className="btn btn-secondary btn-sm"
+                style={{ whiteSpace: 'nowrap' }}
+                title="View agent admin profile"
+              >
+                Profile →
+              </Link>
+            )}
+          </div>
         </div>
         <div className="filter-group">
           <label className="filter-label">Year</label>

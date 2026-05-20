@@ -2,7 +2,7 @@ export function formatValue(value, unitType) {
   if (value === null || value === undefined) return '—'
   switch (unitType) {
     case 'percent':
-      return `${Number(value).toFixed(1)}%`
+      return `${Number(value).toFixed(0)}%`
     case 'days':
       return `${Number(value).toFixed(2)} days`
     case 'hours':

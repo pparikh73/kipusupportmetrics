@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { getAllAgents, upsertAgent } from '../../lib/api'
 import Modal from '../../components/Modal'
 
@@ -11,11 +12,19 @@ export default function AdminAgents() {
 
   const [search, setSearch]           = useState('')
   const [activeFilter, setActiveFilter] = useState('active')
+  const [searchParams]                  = useSearchParams()
 
   const load = () => {
     setLoading(true)
     getAllAgents()
-      .then(setAllRows)
+      .then((rows) => {
+        setAllRows(rows)
+        const deepId = searchParams.get('agent')
+        if (deepId) {
+          const target = rows.find((r) => String(r.id) === deepId)
+          if (target) setEditing({ ...target })
+        }
+      })
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false))
   }
