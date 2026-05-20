@@ -25,7 +25,7 @@
 | Status | APT | Task | Area |
 |--------|-----|------|------|
 | `[✅]` | APT-76 | Merge the two metrics sections into one | Agent Perf |
-| `[✅]` | APT-67 | Filter out inactive agents (monthly table) | Team Dashboard |
+| `[✅]` | APT-67 | Filter out inactive agents (monthly + Q/H tables) — Team Dashboard only; Agent Perf filter is APT-79 | Team Dashboard |
 | `[ ]` | APT-35 | Standardize number rounding (e.g. 85% not 85.19%) | All |
 | `[ ]` | APT-37 | Add color coding to ratings | Agent Perf |
 | `[ ]` | APT-43 | Add color coding to ratings | Team Dashboard |
