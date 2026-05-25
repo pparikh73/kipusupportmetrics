@@ -34,6 +34,9 @@ const NAV = [
   },
 ]
 
+const PROD_HOST = 'kipusupportmetrics.vercel.app'
+const isStaging = typeof window !== 'undefined' && window.location.hostname !== PROD_HOST && window.location.hostname !== 'localhost'
+
 function getSidebarPref() {
   try { return localStorage.getItem('ktp_sidebar') !== 'closed' } catch { return true }
 }
@@ -49,10 +52,15 @@ export default function Layout({ children }) {
 
   return (
     <div className="app-shell">
-      <nav className={`sidebar${open ? '' : ' sidebar-collapsed'}`}>
+      {isStaging && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 9999, background: '#f59e0b', color: '#1a1a2e', textAlign: 'center', fontSize: 12, fontWeight: 700, padding: '4px 0', letterSpacing: 0.5 }}>
+          STAGING — {window.location.hostname}
+        </div>
+      )}
+      <nav className={`sidebar${open ? '' : ' sidebar-collapsed'}`} style={isStaging ? { paddingTop: 26 } : undefined}>
         <div className="sidebar-logo">
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: open ? 'space-between' : 'center' }}>
-            {open && <div>Kipu Tracker<span>Support Performance</span></div>}
+            {open && <div>Kipu Tracker<span>Support Performance · {isStaging ? 'Staging' : 'Live'}</span></div>}
             <button className="sidebar-toggle" onClick={toggle} title={open ? 'Collapse' : 'Expand'}>
               {open ? '◀' : '▶'}
             </button>
@@ -78,7 +86,7 @@ export default function Layout({ children }) {
           </div>
         )}
       </nav>
-      <main className="main-content">
+      <main className="main-content" style={isStaging ? { paddingTop: 26 } : undefined}>
         {children}
       </main>
     </div>
