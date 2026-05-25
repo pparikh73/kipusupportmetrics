@@ -60,7 +60,7 @@ export default function Layout({ children }) {
       <nav className={`sidebar${open ? '' : ' sidebar-collapsed'}`} style={isStaging ? { paddingTop: 26 } : undefined}>
         <div className="sidebar-logo">
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: open ? 'space-between' : 'center' }}>
-            {open && <div>Kipu Tracker<span>Support Performance</span></div>}
+            {open && <div>Kipu Tracker<span>Support Performance v2</span></div>}
             <button className="sidebar-toggle" onClick={toggle} title={open ? 'Collapse' : 'Expand'}>
               {open ? '◀' : '▶'}
             </button>
