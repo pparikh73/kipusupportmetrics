@@ -66,6 +66,8 @@ export default function AdminAgents() {
     }
   }
 
+  const supervisors = allRows.filter((r) => r.role === 'Supervisor' && r.active)
+
   const displayRows = allRows.filter((r) => {
     if (activeFilter === 'active' && !r.active) return false
     if (activeFilter === 'inactive' && r.active) return false
@@ -108,7 +110,7 @@ export default function AdminAgents() {
         </div>
         <div style={{ marginLeft: 'auto' }}>
           <button className="btn btn-primary" onClick={() => setEditing({
-            agent_name: '', role: '', hire_date: '', go_live_date: '', notes: '', active: true,
+            agent_name: '', role: '', supervisor_id: null, hire_date: '', go_live_date: '', notes: '', active: true,
           })}>+ Add Agent</button>
         </div>
       </div>
@@ -181,6 +183,19 @@ export default function AdminAgents() {
               <option value="Manager">Manager</option>
               <option value="Trainer">Trainer</option>
               <option value="Other">Other</option>
+            </select>
+          </div>
+          <div className="form-group" style={{ marginBottom: 12 }}>
+            <label className="form-label">Reporting Supervisor</label>
+            <select
+              className="form-select"
+              value={editing.supervisor_id ?? ''}
+              onChange={(e) => setEditing({ ...editing, supervisor_id: e.target.value ? Number(e.target.value) : null })}
+            >
+              <option value="">— Select supervisor —</option>
+              {supervisors.map((s) => (
+                <option key={s.id} value={s.id}>{s.agent_name}</option>
+              ))}
             </select>
           </div>
           <div className="form-row">

@@ -97,6 +97,7 @@
 
 | Status | APT | Task | Area | Difficulty | Schema Change |
 |--------|-----|------|------|------------|---------------|
+| `[~]` | APT-93 | Add Reporting Supervisor dropdown to agent profile | Admin | S | Add `supervisor_id` to `metrics_agents` |
 | `[ ]` | APT-90 | Add public/private toggle to notes | Notes | S | Add `is_private` bool to `metrics_agent_monthly_notes` |
 | `[ ]` | APT-91* | Auto-fill Created By (name field, not just date) | Notes | S | Add `created_by` to `metrics_agent_monthly_notes` |
 | `[ ]` | APT-88 | Build the metric override feature | Agent Perf | L | New table: `metrics_agent_overrides` |
@@ -143,4 +144,4 @@
 
 ---
 
-_Last updated: 2026-05-20 — Group 1 S+M batch pushed; APT-41,46,48,49,50,61,65,66,70,71,74,75,78,79,82,86,91 ready for review_
+_Last updated: 2026-05-26 — APT-37 rating colors updated; APT-50 trend header fix pushed; APT-93 supervisor dropdown pushed (requires DB step — see supabase/add_supervisor_id.sql)_
