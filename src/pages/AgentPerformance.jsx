@@ -573,7 +573,7 @@ export default function AgentPerformance() {
                         <th className="sticky-metric-head" style={{ minWidth: 160, position: 'sticky', left: 0, zIndex: 2 }}>Metric</th>
                         {trendMonths.map((m) => (
                           <th key={m} className="period-th" style={{ minWidth: 70, width: 70, textAlign: 'center' }}>
-                            {new Date(m + '-02').toLocaleString('default', { month: 'short' })}
+                            {new Date(m.slice(0, 7) + '-02').toLocaleString('default', { month: 'short' })}
                           </th>
                         ))}
                       </tr>
