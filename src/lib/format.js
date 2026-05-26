@@ -61,7 +61,8 @@ export function ratingClass(ratingLabel) {
   const lower = ratingLabel.toLowerCase()
   if (lower.includes('exceeds')) return 'rating-exceeds'
   if (lower.includes('meets')) return 'rating-meets'
-  if (lower.includes('below') || lower.includes('improvement')) return 'rating-below'
+  if (lower.includes('improvement')) return 'rating-needs-improvement'
+  if (lower.includes('below')) return 'rating-below'
   if (lower.includes('incomplete')) return 'rating-incomplete'
   return ''
 }
