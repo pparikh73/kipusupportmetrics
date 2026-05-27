@@ -114,7 +114,7 @@ export default function AttendanceEntry() {
     { value: '10', label: 'October' }, { value: '11', label: 'November' }, { value: '12', label: 'December' },
   ]
 
-  const [groupId, setGroupId] = useState('')
+  const [groupId, setGroupId] = useState(() => { try { return localStorage.getItem('ktp_att_team') || '' } catch { return '' } })
 
   // APT-86: Show/hide inactive agents
   const [showInactiveAgents, setShowInactiveAgents] = useState(false)
@@ -382,7 +382,7 @@ export default function AttendanceEntry() {
         </div>
         <div className="filter-group">
           <label className="filter-label">Team</label>
-          <select className="filter-select" value={groupId} onChange={(e) => setGroupId(e.target.value)}>
+          <select className="filter-select" value={groupId} onChange={(e) => { setGroupId(e.target.value); try { localStorage.setItem('ktp_att_team', e.target.value) } catch {} }}>
             <option value="">All Teams</option>
             {teams.map((t) => <option key={t.id} value={t.id}>{t.group_name}</option>)}
           </select>

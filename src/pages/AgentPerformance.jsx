@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import { Link } from 'react-router-dom'
 import {
   getTeams, getAgents,
@@ -206,6 +206,7 @@ function savePref(key, val) { try { localStorage.setItem(key, val) } catch {} }
 export default function AgentPerformance() {
   const now = new Date()
   const yearOptions = getYearOptions()
+  const savedAgentRef = useRef(loadPref('ktp_ap_agent', ''))
 
   const [teams, setTeams]   = useState([])
   const [agents, setAgents] = useState([])
@@ -264,7 +265,14 @@ export default function AgentPerformance() {
   useEffect(() => {
     setAgentId('')
     getAgents({ groupId: teamId || undefined })
-      .then(setAgents)
+      .then((list) => {
+        setAgents(list)
+        if (savedAgentRef.current) {
+          const match = list.find((a) => String(a.id) === savedAgentRef.current)
+          if (match) setAgentId(savedAgentRef.current)
+          savedAgentRef.current = ''
+        }
+      })
       .catch((e) => setError(e.message))
   }, [teamId])
 
