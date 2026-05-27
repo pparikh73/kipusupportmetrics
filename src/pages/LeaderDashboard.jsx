@@ -111,6 +111,9 @@ function MetricCell({ row }) {
       {row.goal_value != null && (
         <div style={{ fontSize: 9, color: '#9ca3af', marginTop: 1 }}>Goal: {formatValue(row.goal_value, row.unit_type)}</div>
       )}
+      {row.tolerance_value != null && (
+        <div style={{ fontSize: 9, color: '#b0b8c4', marginTop: 1 }}>Tol: ±{formatValue(row.tolerance_value, row.unit_type)}</div>
+      )}
       {isTracked && (
         <span className={`badge ${statusClass(row.metric_status)}`} style={{ fontSize: 9, marginTop: 2, display: 'inline-block' }}>
           {statusLabel(row.metric_status)}
