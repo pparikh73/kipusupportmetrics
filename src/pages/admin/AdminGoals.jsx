@@ -31,8 +31,16 @@ export default function AdminGoals() {
       payload.metric_id = Number(payload.metric_id)
       payload.goal_value = payload.goal_value !== '' ? Number(payload.goal_value) : null
       payload.tolerance_value = payload.tolerance_value !== '' ? Number(payload.tolerance_value) : null
-      if (payload.effective_start_month === '') payload.effective_start_month = null
-      if (payload.effective_end_month === '')   payload.effective_end_month = null
+      if (!payload.effective_start_month) {
+        payload.effective_start_month = null
+      } else if (payload.effective_start_month.length === 7) {
+        payload.effective_start_month = payload.effective_start_month + '-01'
+      }
+      if (!payload.effective_end_month) {
+        payload.effective_end_month = null
+      } else if (payload.effective_end_month.length === 7) {
+        payload.effective_end_month = payload.effective_end_month + '-01'
+      }
       await upsertGroupGoal(payload)
       setEditing(null)
       load()
@@ -174,12 +182,22 @@ export default function AdminGoals() {
           </div>
           <div className="form-row">
             <div className="form-group">
-              <label className="form-label">Start Month (YYYY-MM)</label>
-              <input className="form-input" placeholder="2024-01" value={editing.effective_start_month ?? ''} onChange={(e) => setEditing({ ...editing, effective_start_month: e.target.value || null })} />
+              <label className="form-label">Start Month</label>
+              <input
+                className="form-input"
+                type="month"
+                value={editing.effective_start_month ? editing.effective_start_month.slice(0, 7) : ''}
+                onChange={(e) => setEditing({ ...editing, effective_start_month: e.target.value || null })}
+              />
             </div>
             <div className="form-group">
-              <label className="form-label">End Month (YYYY-MM)</label>
-              <input className="form-input" placeholder="Leave blank if current" value={editing.effective_end_month ?? ''} onChange={(e) => setEditing({ ...editing, effective_end_month: e.target.value || null })} />
+              <label className="form-label">End Month <span style={{ fontSize: 11, color: '#9ca3af', fontWeight: 400 }}>(leave blank if still active)</span></label>
+              <input
+                className="form-input"
+                type="month"
+                value={editing.effective_end_month ? editing.effective_end_month.slice(0, 7) : ''}
+                onChange={(e) => setEditing({ ...editing, effective_end_month: e.target.value || null })}
+              />
             </div>
           </div>
           <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, cursor: 'pointer', marginTop: 8 }}>
