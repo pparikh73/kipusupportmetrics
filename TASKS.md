@@ -101,7 +101,7 @@
 | `[ ]` | APT-90 | Add public/private toggle to notes | Notes | S | Add `is_private` bool to `metrics_agent_monthly_notes` | Chad | 1-Jun |
 | `[~]` | APT-91* | Auto-fill Created By (supervisor dropdown; no login system) | Notes | S | Add `created_by` to `metrics_agent_monthly_notes` | Chad | 29-May |
 | `[ ]` | APT-88 | Build the metric override feature | Agent Perf | L | New table: `metrics_agent_overrides` | Chad | 1-Jun |
-| `[ ]` | APT-81 | Add effective dates for goal changes | Goals | L | Add `effective_from`/`effective_to` to `metrics_group_goals` | Chad | 1-Jun |
+| `[~]` | APT-81 | Show correct historical goal per month (goals change quarterly — viewing a backdated month must show the goal that was active then, not today's goal). DB schema already has start/end month fields. Fix needed: update `metrics_vw_ab_scorecard` view to join goals by date range. **Needs Supabase admin — resuming Monday.** | Goals | L | Update view logic in `metrics_vw_ab_scorecard` | Chad | TBD |
 | `[ ]` | APT-80 | Allow metrics to be toggled per team | Admin | L | New table: `metrics_group_metric_visibility` | Chad | 1-Jun |
 | `[ ]` | APT-77 | Restructure goals to be role-based | Goals | XL | Add `role` dimension to `metrics_group_goals` | Chad | 1-Jun |
 
@@ -128,7 +128,7 @@ These tasks are about confirming data accuracy and signing off on the tool with 
 
 | APT | Reported Issue | Fix Applied | Re-test |
 |-----|---------------|-------------|---------|
-| APT-46 | Tolerance value not displaying; goal values incorrect; need to verify if goals/tolerances are consistent across all teams | Fix pending | — |
+| APT-46 | Tolerance not displaying (fixed ✓); Start/End Month fields confusing (replaced with date pickers ✓); goal values in DB may still be incorrect — needs Angelique to verify against reference table in Admin > Goals | Tolerance display + date pickers pushed | Pending data verification |
 | APT-76 | Open question: does "merge" mean remove the Scored/Additional split entirely, or just combine into one section? Needs Angelique to clarify | Pending clarification | — |
 
 ---
@@ -140,7 +140,8 @@ These tasks are about confirming data accuracy and signing off on the tool with 
 | APT-38 | Agent Perf → pick any agent → the **Overall Rating** label should appear in the header section above the metric tabs |
 | APT-73 | Admin > Agents → Edit any agent → **Team Assignments** section should allow adding the same agent to more than one team |
 | APT-87 | Attendance Entry → save attendance for an agent → navigate away → come back → the saved values should still be there |
+| APT-46 | Admin > Goals → Edit any goal → Start Month and End Month are now date pickers (click to choose month/year) — tested and confirmed ✓ |
 
 ---
 
-_Last updated: 2026-05-27 — Synced with Jira export; APT-97 (Reporting Supervisor dropdown) complete; APT-38 and APT-73 flagged as Ready for Review from Jira; APT-46 and APT-76 moved to Rework Log; new QA tasks APT-93–96 added_
+_Last updated: 2026-05-28 — APT-46 date pickers pushed and confirmed working; APT-81 updated with clear description of historical goal fix needed (Supabase admin required Monday)_
