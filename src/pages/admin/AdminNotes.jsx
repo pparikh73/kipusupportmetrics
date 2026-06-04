@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { getAllNotes, upsertAgentMonthNote, getAllAgents } from '../../lib/api'
+import { getAllNotes, upsertAgentMonthNote, getAllAgents, getTeams } from '../../lib/api'
 import Modal from '../../components/Modal'
 import { recentMonths } from '../../lib/format'
 
@@ -12,8 +12,13 @@ export default function AdminNotes() {
   const [editing, setEditing] = useState(null)
   const [saving, setSaving]   = useState(false)
 
+  const [supervisors, setSupervisors] = useState([])
   const [agentFilter, setAgentFilter] = useState('')
   const [monthFilter, setMonthFilter] = useState('')
+
+  useEffect(() => {
+    getAllAgents().then((all) => setSupervisors(all.filter((a) => a.role === 'Supervisor' && a.active))).catch(() => {})
+  }, [])
 
   const load = () => {
     setLoading(true)
@@ -149,7 +154,10 @@ export default function AdminNotes() {
           </div>
           <div className="form-group" style={{ marginBottom: 0 }}>
             <label className="form-label">Created By</label>
-            <input className="form-input" value={editing.created_by ?? ''} onChange={(e) => setEditing({ ...editing, created_by: e.target.value })} />
+            <select className="form-select" value={editing.created_by ?? ''} onChange={(e) => setEditing({ ...editing, created_by: e.target.value })}>
+              <option value="">— Select supervisor —</option>
+              {supervisors.map((s) => <option key={s.id} value={s.agent_name}>{s.agent_name}</option>)}
+            </select>
           </div>
         </Modal>
       )}

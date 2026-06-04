@@ -254,8 +254,9 @@ export async function getAgentMonthNote({ agentId, noteMonth }) {
   return data
 }
 
-export async function upsertAgentMonthNote({ agentId, noteMonth, noteText }) {
+export async function upsertAgentMonthNote({ agentId, noteMonth, noteText, createdBy }) {
   const row = { agent_id: agentId, metric_month: toDateParam(noteMonth), note_text: noteText }
+  if (createdBy) row.created_by = createdBy
   const { data, error } = await supabase
     .from('metrics_agent_monthly_notes')
     .upsert(row, { onConflict: 'agent_id,metric_month' })

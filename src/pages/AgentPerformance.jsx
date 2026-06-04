@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useRef } from 'react'
 import { Link } from 'react-router-dom'
 import {
-  getTeams, getAgents,
+  getTeams, getAgents, getAllAgents,
   getAllMetricDefinitions, getScorecard, getScorecardYear,
   getSummary, getAgentMonthNote, upsertAgentMonthNote,
 } from '../lib/api'
@@ -231,8 +231,11 @@ export default function AgentPerformance() {
   const [savedNote, setSavedNote]     = useState('')
   const [noteSaving, setNoteSaving]   = useState(false)
   const [noteMsg, setNoteMsg]         = useState('')
-  // APT-91: created_at for notes
   const [noteCreatedAt, setNoteCreatedAt] = useState(null)
+  const [noteCreatedBy, setNoteCreatedBy] = useState(null)
+  const [noteSupervisor, setNoteSupervisor] = useState(() => { try { return localStorage.getItem('ktp_ap_supervisor') || '' } catch { return '' } })
+  const [supervisors, setSupervisors] = useState([])
+  const [notesVisible, setNotesVisible] = useState(true)
 
   const [loading, setLoading]         = useState(false)
   const [yearLoading, setYearLoading] = useState(false)
@@ -249,6 +252,7 @@ export default function AgentPerformance() {
   useEffect(() => {
     getTeams().then(setTeams).catch((e) => setError(e.message))
     getAllMetricDefinitions().then(setAllDefs).catch((e) => setError(e.message))
+    getAllAgents().then((all) => setSupervisors(all.filter((a) => a.role === 'Supervisor' && a.active))).catch(() => {})
   }, [])
 
   // APT-65: Derive active metricDefs and inactiveKeys
@@ -294,6 +298,7 @@ export default function AgentPerformance() {
         setNote(t)
         setSavedNote(t)
         setNoteCreatedAt(noteRow?.created_at ?? null)
+        setNoteCreatedBy(noteRow?.created_by ?? null)
       })
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false))
@@ -318,8 +323,10 @@ export default function AgentPerformance() {
         agentId: Number(agentId),
         noteMonth: `${year}-${selMonth}`,
         noteText: note,
+        createdBy: noteSupervisor || null,
       })
       setSavedNote(note)
+      setNoteCreatedBy(noteSupervisor || null)
       setNoteMsg('Saved.')
       if (!noteCreatedAt) setNoteCreatedAt(new Date().toISOString())
       setTimeout(() => setNoteMsg(''), 3000)
@@ -610,35 +617,63 @@ export default function AgentPerformance() {
             </>
           )}
 
-          {/* APT-91: Supervisor Note — always visible */}
+          {/* APT-91: Supervisor Note with hide/show toggle */}
           <div className="card">
-            <div className="card-title">Supervisor Note — {selectedMonthLabel} {year}</div>
-            <textarea
-              className="form-textarea"
-              style={{ width: '100%', marginBottom: 8 }}
-              value={note}
-              onChange={(e) => setNote(e.target.value)}
-              placeholder="Add a supervisor note for this agent and month…"
-              rows={4}
-            />
-            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: notesVisible ? 12 : 0 }}>
+              <div className="card-title" style={{ margin: 0 }}>Supervisor Note — {selectedMonthLabel} {year}</div>
               <button
-                className="btn btn-primary btn-sm"
-                onClick={saveNote}
-                disabled={noteSaving || note === savedNote}
+                className="btn btn-secondary btn-sm"
+                onClick={() => setNotesVisible((v) => !v)}
+                style={{ fontSize: 11 }}
               >
-                {noteSaving ? 'Saving…' : 'Save Note'}
+                {notesVisible ? 'Hide Notes' : 'Show Notes'}
               </button>
-              {noteMsg && (
-                <span style={{ fontSize: 12, color: noteMsg.startsWith('Error') ? '#842029' : '#1a6e3a' }}>
-                  {noteMsg}
-                </span>
-              )}
             </div>
-            {noteCreatedAt && (
-              <div style={{ fontSize: 11, color: '#9ca3af', marginTop: 6 }}>
-                Note created: {new Date(noteCreatedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-              </div>
+            {notesVisible && (
+              <>
+                <div className="form-group" style={{ marginBottom: 8 }}>
+                  <label className="form-label" style={{ fontSize: 11 }}>Supervisor</label>
+                  <select
+                    className="form-select"
+                    value={noteSupervisor}
+                    onChange={(e) => {
+                      setNoteSupervisor(e.target.value)
+                      try { localStorage.setItem('ktp_ap_supervisor', e.target.value) } catch {}
+                    }}
+                  >
+                    <option value="">— Select supervisor —</option>
+                    {supervisors.map((s) => <option key={s.id} value={s.agent_name}>{s.agent_name}</option>)}
+                  </select>
+                </div>
+                <textarea
+                  className="form-textarea"
+                  style={{ width: '100%', marginBottom: 8 }}
+                  value={note}
+                  onChange={(e) => setNote(e.target.value)}
+                  placeholder="Add a supervisor note for this agent and month…"
+                  rows={4}
+                />
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                  <button
+                    className="btn btn-primary btn-sm"
+                    onClick={saveNote}
+                    disabled={noteSaving || note === savedNote}
+                  >
+                    {noteSaving ? 'Saving…' : 'Save Note'}
+                  </button>
+                  {noteMsg && (
+                    <span style={{ fontSize: 12, color: noteMsg.startsWith('Error') ? '#842029' : '#1a6e3a' }}>
+                      {noteMsg}
+                    </span>
+                  )}
+                </div>
+                {(noteCreatedAt || noteCreatedBy) && (
+                  <div style={{ fontSize: 11, color: '#9ca3af', marginTop: 6 }}>
+                    {noteCreatedBy && <span>By: {noteCreatedBy}{noteCreatedAt ? ' · ' : ''}</span>}
+                    {noteCreatedAt && <span>Created: {new Date(noteCreatedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>}
+                  </div>
+                )}
+              </>
             )}
           </div>
         </>
