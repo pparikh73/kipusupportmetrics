@@ -99,7 +99,7 @@
 | Status | APT | Task | Area | Difficulty | Schema Change | Assignee | Due |
 |--------|-----|------|------|------------|---------------|----------|-----|
 | `[ ]` | APT-90 | Add public/private toggle to notes | Notes | S | Add `is_private` bool to `metrics_agent_monthly_notes` | Chad | 1-Jun |
-| `[~]` | APT-91* | Auto-fill Created By (supervisor dropdown; no login system) | Notes | S | Add `created_by` to `metrics_agent_monthly_notes` | Chad | 29-May |
+| `[✅]` | APT-91* | Auto-fill Created By (supervisor dropdown; no login system) | Notes | S | Add `created_by` to `metrics_agent_monthly_notes` | Chad | 29-May |
 | `[ ]` | APT-88 | Build the metric override feature | Agent Perf | L | New table: `metrics_agent_overrides` | Chad | 1-Jun |
 | `[~]` | APT-81 | Show correct historical goal per month (goals change quarterly — viewing a backdated month must show the goal that was active then, not today's goal). DB schema already has start/end month fields. Fix needed: update `metrics_vw_ab_scorecard` view to join goals by date range. **Needs Supabase admin — resuming Monday.** | Goals | L | Update view logic in `metrics_vw_ab_scorecard` | Chad | TBD |
 | `[ ]` | APT-80 | Allow metrics to be toggled per team | Admin | L | New table: `metrics_group_metric_visibility` | Chad | 1-Jun |
@@ -141,7 +141,8 @@ These tasks are about confirming data accuracy and signing off on the tool with 
 | APT-73 | Admin > Agents → Edit any agent → **Team Assignments** section should allow adding the same agent to more than one team |
 | APT-87 | Attendance Entry → save attendance for an agent → navigate away → come back → the saved values should still be there |
 | APT-46 | Admin > Goals → Edit any goal → Start Month and End Month are now date pickers (click to choose month/year) — tested and confirmed ✓ |
+| APT-91 | Agent Perf → supervisor dropdown above Save Note, Hide/Show Notes toggle, created_by saved with note; Admin > Notes → Created By is now a supervisor dropdown — tested and confirmed ✓ |
 
 ---
 
-_Last updated: 2026-05-28 — APT-46 date pickers pushed and confirmed working; APT-81 updated with clear description of historical goal fix needed (Supabase admin required Monday)_
+_Last updated: 2026-06-04 — APT-91 fully complete (supervisor dropdown + hide/show notes toggle); APT-81 waiting on Supabase admin_
