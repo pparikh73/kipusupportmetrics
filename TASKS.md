@@ -101,7 +101,7 @@
 | `[ ]` | APT-90 | Add public/private toggle to notes | Notes | S | Add `is_private` bool to `metrics_agent_monthly_notes` | Chad | 1-Jun |
 | `[✅]` | APT-91* | Auto-fill Created By (supervisor dropdown; no login system) | Notes | S | Add `created_by` to `metrics_agent_monthly_notes` | Chad | 29-May |
 | `[ ]` | APT-88 | Build the metric override feature | Agent Perf | L | New table: `metrics_agent_overrides` | Chad | 1-Jun |
-| `[~]` | APT-81 | Show correct historical goal per month (goals change quarterly — viewing a backdated month must show the goal that was active then, not today's goal). DB schema already has start/end month fields. Fix needed: update `metrics_vw_ab_scorecard` view to join goals by date range. **Needs Supabase admin — resuming Monday.** | Goals | L | Update view logic in `metrics_vw_ab_scorecard` | Chad | TBD |
+| `[✓]` | APT-81 | Show correct historical goal per month (goals change quarterly — viewing a backdated month must show the goal that was active then, not today's goal). Implemented via frontend overlay: `getActiveGoals()` queries goals filtered by date range, then the correct goal/tolerance/status is applied before display. No Supabase view change needed. | Goals | L | Frontend overlay — no schema change | Chad | TBD |
 | `[ ]` | APT-80 | Allow metrics to be toggled per team | Admin | L | New table: `metrics_group_metric_visibility` | Chad | 1-Jun |
 | `[ ]` | APT-77 | Restructure goals to be role-based | Goals | XL | Add `role` dimension to `metrics_group_goals` | Chad | 1-Jun |
 
@@ -142,7 +142,8 @@ These tasks are about confirming data accuracy and signing off on the tool with 
 | APT-87 | Attendance Entry → save attendance for an agent → navigate away → come back → the saved values should still be there |
 | APT-46 | Admin > Goals → Edit any goal → Start Month and End Month are now date pickers (click to choose month/year) — tested and confirmed ✓ |
 | APT-91 | Agent Perf → supervisor dropdown above Save Note, Hide/Show Notes toggle, created_by saved with note; Admin > Notes → Created By is now a supervisor dropdown — tested and confirmed ✓ |
+| APT-81 | Agent Perf + Team Dashboard → navigate to a past month → the **Goal** and **Tolerance** columns should show the values that were active during that month, not today's values. To test: set a goal with Start Month = Jan 2026 and End Month = Mar 2026, then view an agent's January scorecard — that goal should appear. View April — a different (or no) goal should appear. |
 
 ---
 
-_Last updated: 2026-06-04 — APT-91 fully complete (supervisor dropdown + hide/show notes toggle); APT-81 waiting on Supabase admin_
+_Last updated: 2026-06-05 — APT-81 pushed (historical goals now display per viewed month, no DB change needed)_

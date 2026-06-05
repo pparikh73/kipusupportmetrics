@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import {
   getTeams, getAgents,
-  getAllMetricDefinitions, getScorecard, getScorecardYear, getSummary,
+  getAllMetricDefinitions, getScorecard, getScorecardYear, getSummary, getActiveGoals,
 } from '../lib/api'
 import { formatValue, statusClass, statusLabel, ratingClass, recentMonths } from '../lib/format'
 
@@ -96,6 +96,25 @@ function buildMetricList(viewRows, fallbackDefs, inactiveKeys = new Set()) {
     if (!seen.has(m.metric_key)) list.push({ ...m, display_order: m.display_order ?? 999 })
   })
   return list.sort((a, b) => (a.display_order ?? 999) - (b.display_order ?? 999))
+}
+
+// APT-81: Override goal/tolerance/status on scorecard rows with historically correct values
+function applyHistoricalGoals(rows, histGoals) {
+  if (!histGoals.length) return rows
+  const goalMap = {}
+  histGoals.forEach((g) => {
+    const key = g.metrics_definitions?.metric_key
+    if (key) goalMap[key] = { goal_value: g.goal_value, tolerance_value: g.tolerance_value }
+  })
+  return rows.map((row) => {
+    const g = goalMap[row.metric_key]
+    if (!g) return row
+    const { goal_value, tolerance_value } = g
+    const metric_status = row.actual_value != null
+      ? deriveStatus(row.actual_value, { goal_value, tolerance_value, direction_good: row.direction_good })
+      : row.metric_status
+    return { ...row, goal_value, tolerance_value, metric_status }
+  })
 }
 
 // ── Sub-components ────────────────────────────────────────────────────────────
@@ -201,8 +220,12 @@ export default function TeamDashboard() {
     Promise.all([
       getScorecard({ agentIds, month }),
       getSummary({ groupId: teamId ? Number(teamId) : undefined, month }),
+      teamId ? getActiveGoals({ groupId: teamId, month }) : Promise.resolve([]),
     ])
-      .then(([det, sumRows]) => { setMonthDetail(det); setSummaries(sumRows) })
+      .then(([det, sumRows, histGoals]) => {
+        setMonthDetail(applyHistoricalGoals(det, histGoals))
+        setSummaries(sumRows)
+      })
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false))
   }, [agentIds, month, teamId])

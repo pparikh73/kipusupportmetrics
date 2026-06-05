@@ -241,6 +241,24 @@ export async function getTrends({ agentId, groupId, year } = {}) {
   return data
 }
 
+// ── Historical Goals (metrics_group_goals filtered by date range) ─────────────
+
+// Returns goals that were active during the given month (YYYY-MM or YYYY-MM-01).
+// Used by the frontend to show the historically correct goal when viewing a past month.
+export async function getActiveGoals({ groupId, month }) {
+  const dateParam = toDateParam(month)
+  if (!dateParam || !groupId) return []
+  const { data, error } = await supabase
+    .from('metrics_group_goals')
+    .select('metric_id, goal_value, tolerance_value, metrics_definitions(metric_key)')
+    .eq('group_id', Number(groupId))
+    .eq('active', true)
+    .lte('effective_start_month', dateParam)
+    .or(`effective_end_month.is.null,effective_end_month.gte.${dateParam}`)
+  if (error) throw error
+  return data
+}
+
 // ── Notes (metrics_agent_monthly_notes) ───────────────────────────────────────
 
 export async function getAgentMonthNote({ agentId, noteMonth }) {

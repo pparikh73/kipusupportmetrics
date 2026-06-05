@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import {
   getTeams, getAgents, getAllAgents,
   getAllMetricDefinitions, getScorecard, getScorecardYear,
-  getSummary, getAgentMonthNote, upsertAgentMonthNote,
+  getSummary, getAgentMonthNote, upsertAgentMonthNote, getActiveGoals,
 } from '../lib/api'
 import { formatValue, statusLabel, statusClass, ratingClass } from '../lib/format'
 
@@ -103,6 +103,25 @@ function buildMetricList(viewRows, fallbackDefs, inactiveKeys = new Set()) {
     if (!seen.has(m.metric_key)) list.push({ ...m, display_order: m.display_order ?? 999 })
   })
   return list.sort((a, b) => (a.display_order ?? 999) - (b.display_order ?? 999))
+}
+
+// APT-81: Override goal/tolerance/status on scorecard rows with historically correct values
+function applyHistoricalGoals(rows, histGoals) {
+  if (!histGoals.length) return rows
+  const goalMap = {}
+  histGoals.forEach((g) => {
+    const key = g.metrics_definitions?.metric_key
+    if (key) goalMap[key] = { goal_value: g.goal_value, tolerance_value: g.tolerance_value }
+  })
+  return rows.map((row) => {
+    const g = goalMap[row.metric_key]
+    if (!g) return row
+    const { goal_value, tolerance_value } = g
+    const metric_status = row.actual_value != null
+      ? deriveStatus(row.actual_value, { goal_value, tolerance_value, direction_good: row.direction_good })
+      : row.metric_status
+    return { ...row, goal_value, tolerance_value, metric_status }
+  })
 }
 
 // ── Sub-components ────────────────────────────────────────────────────────────
@@ -280,7 +299,7 @@ export default function AgentPerformance() {
       .catch((e) => setError(e.message))
   }, [teamId])
 
-  // Load monthly data when agent / year / month changes
+  // Load monthly data when agent / year / month / team changes
   useEffect(() => {
     if (!agentId) return
     const monthKey = `${year}-${selMonth}`
@@ -290,9 +309,10 @@ export default function AgentPerformance() {
       getScorecard({ agentId: Number(agentId), month: monthKey }),
       getSummary({ agentId: Number(agentId), month: monthKey }),
       getAgentMonthNote({ agentId: Number(agentId), noteMonth: monthKey }),
+      teamId ? getActiveGoals({ groupId: teamId, month: monthKey }) : Promise.resolve([]),
     ])
-      .then(([sc, sumRows, noteRow]) => {
-        setMonthDetail(sc)
+      .then(([sc, sumRows, noteRow, histGoals]) => {
+        setMonthDetail(applyHistoricalGoals(sc, histGoals))
         setSummary(sumRows[0] ?? null)
         const t = noteRow?.note_text ?? ''
         setNote(t)
@@ -302,7 +322,7 @@ export default function AgentPerformance() {
       })
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false))
-  }, [agentId, year, selMonth])
+  }, [agentId, year, selMonth, teamId])
 
   // Load year data for rollups
   useEffect(() => {
