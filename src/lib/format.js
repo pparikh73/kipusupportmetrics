@@ -67,6 +67,25 @@ export function ratingClass(ratingLabel) {
   return ''
 }
 
+// APT-36: Compute overall rating from an agent's scorecard rows for a given period.
+// Only counts metrics where counts_toward_score=true AND the metric has both actual data
+// and a goal (status = on_track or off_track). Metrics with no goal or no data are excluded.
+export function computeRating(rows) {
+  const scored = rows.filter((r) =>
+    !!r.counts_toward_score &&
+    (r.metric_status === 'on_track' || r.metric_status === 'off_track')
+  )
+  if (!scored.length) return { label: 'Incomplete', onTrack: 0, offTrack: 0, total: 0 }
+  const onTrack = scored.filter((r) => r.metric_status === 'on_track').length
+  const offTrack = scored.length - onTrack
+  const pct = onTrack / scored.length
+  let label
+  if (pct >= 1.0) label = 'Meets Expectations'
+  else if (pct >= 0.75) label = 'Needs Improvement'
+  else label = 'Below Expectations'
+  return { label, onTrack, offTrack, total: scored.length }
+}
+
 // Returns YYYY-MM for current month
 export function currentMonth() {
   const d = new Date()

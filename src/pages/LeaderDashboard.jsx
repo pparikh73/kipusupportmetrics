@@ -3,7 +3,7 @@ import {
   getTeams, getAgents,
   getAllMetricDefinitions, getScorecard, getScorecardYear, getSummary, getActiveGoals,
 } from '../lib/api'
-import { formatValue, statusClass, statusLabel, ratingClass, recentMonths } from '../lib/format'
+import { formatValue, statusClass, statusLabel, ratingClass, recentMonths, computeRating } from '../lib/format'
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -303,39 +303,42 @@ export default function TeamDashboard() {
     return result
   }, [agents, yearDetail, rollupMetrics])
 
-  // Summary card values — scoped to agents actually shown in the monthly table
   const selectedTeam = teams.find((t) => String(t.id) === teamId)
-  const activeMonthAgentIds = useMemo(() => new Set(activeMonthAgents.map((a) => a.id)), [activeMonthAgents])
-  const activeSummaries = useMemo(
-    () => summaries.filter((r) => activeMonthAgentIds.has(r.agent_id)),
-    [summaries, activeMonthAgentIds]
-  )
-  const ratingDist = activeSummaries.reduce((acc, r) => {
-    const lbl = r.rating_label ?? r.score_label ?? 'Unknown'
-    acc[lbl] = (acc[lbl] ?? 0) + 1
-    return acc
-  }, {})
-  const avgOnTrack = activeSummaries.length
-    ? (activeSummaries.reduce((s, r) => s + (r.on_track_count ?? 0), 0) / activeSummaries.length).toFixed(1)
-    : '—'
+
+  // APT-36: Compute per-agent ratings from scorecard rows (not from DB summary view)
+  const agentRatings = useMemo(() => {
+    const map = {}
+    activeMonthAgents.forEach((agent) => {
+      const rows = Object.values(detailByAgent[agent.id] ?? {})
+      map[agent.id] = computeRating(rows)
+    })
+    return map
+  }, [activeMonthAgents, detailByAgent])
+
+  const ratingDist = useMemo(() => {
+    return Object.values(agentRatings).reduce((acc, r) => {
+      acc[r.label] = (acc[r.label] ?? 0) + 1
+      return acc
+    }, {})
+  }, [agentRatings])
+
+  const avgOnTrack = useMemo(() => {
+    const vals = Object.values(agentRatings)
+    if (!vals.length) return '—'
+    return (vals.reduce((s, r) => s + r.onTrack, 0) / vals.length).toFixed(1)
+  }, [agentRatings])
 
   const monthLabel = monthOptions.find((m) => m.value === month)?.label ?? month
 
-  // APT-66: Team leaderboard
+  // APT-66: Team leaderboard — APT-36: ratings now computed from scorecard rows
   const leaderboard = useMemo(() => {
     return activeMonthAgents
       .map((agent) => {
-        const s = activeSummaries.find((r) => r.agent_id === agent.id)
-        return {
-          id: agent.id,
-          name: agent.agent_name,
-          rating: s?.rating_label ?? s?.score_label ?? '—',
-          onTrack: s?.on_track_count ?? 0,
-          offTrack: s?.off_track_count ?? 0,
-        }
+        const r = agentRatings[agent.id] ?? { label: 'Incomplete', onTrack: 0, offTrack: 0 }
+        return { id: agent.id, name: agent.agent_name, rating: r.label, onTrack: r.onTrack, offTrack: r.offTrack }
       })
       .sort((a, b) => b.onTrack - a.onTrack)
-  }, [activeMonthAgents, activeSummaries])
+  }, [activeMonthAgents, agentRatings])
 
   // APT-70: Filtered quarters
   const filteredQuarters = selectedQ === 'all' ? QUARTERS : QUARTERS.filter((q) => q.label === selectedQ)

@@ -5,7 +5,7 @@ import {
   getAllMetricDefinitions, getScorecard, getScorecardYear,
   getSummary, getAgentMonthNote, upsertAgentMonthNote, getActiveGoals,
 } from '../lib/api'
-import { formatValue, statusLabel, statusClass, ratingClass } from '../lib/format'
+import { formatValue, statusLabel, statusClass, ratingClass, computeRating } from '../lib/format'
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -366,11 +366,12 @@ export default function AgentPerformance() {
 
   const selectedMonthLabel = MONTH_OPTIONS.find((m) => m.value === selMonth)?.label ?? selMonth
 
-  // Summary card field aliases — handle different possible view column names
-  const ratingLabel = summary?.rating_label ?? summary?.score_label ?? '—'
-  const onTrackCount = summary?.on_track_count ?? '—'
-  const offTrackCount = summary?.off_track_count ?? '—'
-  const withDataCount = summary?.scored_with_data ?? summary?.scoring_metrics_with_data ?? summary?.metrics_with_data ?? '—'
+  // APT-36: Compute rating from scorecard rows (counts_toward_score metrics with data + goal only)
+  const computedRating = useMemo(() => computeRating(allRows), [allRows])
+  const ratingLabel   = computedRating.label
+  const onTrackCount  = computedRating.onTrack
+  const offTrackCount = computedRating.offTrack
+  const withDataCount = computedRating.total
 
   // APT-49: YTD computed data
   const ytdData = useMemo(() => {
