@@ -64,13 +64,26 @@ export default function AdminGoals() {
     .filter((g) => !teamFilter || String(g.group_id) === teamFilter)
     .filter((g) => showHistory || !g.effective_end_month || g.effective_end_month >= thisMonthStr)
 
-  // Group goals by team for display
+  // Group goals by team, then sort within each team:
+  // primary = metric name (groups duplicates together), secondary = no-end-date first, tertiary = newest start first
   const goalsByTeam = useMemo(() => {
     const map = {}
     displayGoals.forEach((g) => {
       const teamName = g.metrics_groups?.group_name ?? `Team ${g.group_id}`
       if (!map[teamName]) map[teamName] = []
       map[teamName].push(g)
+    })
+    Object.values(map).forEach((list) => {
+      list.sort((a, b) => {
+        const nameA = a.metrics_definitions?.metric_name ?? ''
+        const nameB = b.metrics_definitions?.metric_name ?? ''
+        if (nameA !== nameB) return nameA.localeCompare(nameB)
+        // Same metric: no end date (still active) first
+        if (!a.effective_end_month && b.effective_end_month) return -1
+        if (a.effective_end_month && !b.effective_end_month) return 1
+        // Both have (or don't have) end dates: newest start month first
+        return (b.effective_start_month ?? '').localeCompare(a.effective_start_month ?? '')
+      })
     })
     return map
   }, [displayGoals])
