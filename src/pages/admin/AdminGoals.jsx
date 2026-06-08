@@ -12,6 +12,13 @@ export default function AdminGoals() {
   const [saving, setSaving]   = useState(false)
 
   const [teamFilter, setTeamFilter] = useState('')
+  const [showHistory, setShowHistory] = useState(false)
+
+  // First day of the current month — used to identify expired goals
+  const thisMonthStr = useMemo(() => {
+    const d = new Date()
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01`
+  }, [])
 
   const load = () => {
     setLoading(true)
@@ -53,9 +60,9 @@ export default function AdminGoals() {
 
   const activeMetrics = metrics.filter((m) => m.active)
 
-  const displayGoals = teamFilter
-    ? goals.filter((g) => String(g.group_id) === teamFilter)
-    : goals
+  const displayGoals = goals
+    .filter((g) => !teamFilter || String(g.group_id) === teamFilter)
+    .filter((g) => showHistory || !g.effective_end_month || g.effective_end_month >= thisMonthStr)
 
   // Group goals by team for display
   const goalsByTeam = useMemo(() => {
@@ -84,6 +91,12 @@ export default function AdminGoals() {
             <option value="">All Teams</option>
             {teams.map((t) => <option key={t.id} value={t.id}>{t.group_name}</option>)}
           </select>
+        </div>
+        <div className="filter-group" style={{ justifyContent: 'flex-end' }}>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, cursor: 'pointer', color: '#6b7a8d', paddingTop: 18 }}>
+            <input type="checkbox" checked={showHistory} onChange={(e) => setShowHistory(e.target.checked)} />
+            Show expired
+          </label>
         </div>
         <div style={{ marginLeft: 'auto' }}>
           <button className="btn btn-primary" onClick={() => setEditing({
