@@ -434,7 +434,7 @@ export default function TeamDashboard() {
             <>
               <div className="section-title">Agent Leaderboard — {monthLabel}</div>
               <div className="table-wrap" style={{ marginBottom: 20 }}>
-                <table className="sc-table">
+                <table className="sc-table" style={{ width: '100%' }}>
                   <thead>
                     <tr>
                       <th style={{ width: 36, textAlign: 'center' }}>#</th>
@@ -470,7 +470,7 @@ export default function TeamDashboard() {
             </div>
           ) : (
             <div className="table-wrap">
-              <table className="sc-table">
+              <table className="sc-table" style={{ width: '100%' }}>
                 <thead>
                   <tr>
                     <th className="sticky-metric-head" style={{ ...stickyCol, background: '#f8f9fb', zIndex: 2 }}>Metric</th>
@@ -529,7 +529,7 @@ export default function TeamDashboard() {
               {/* Quarterly table — rows: metrics, columns: Q × agents */}
               <div className="section-title">Quarterly Team Summary — {rollupYear}</div>
               <div className="table-wrap">
-                <table className="sc-table">
+                <table className="sc-table" style={{ width: '100%' }}>
                   <thead>
                     <tr>
                       <th rowSpan={2} className="sticky-metric-head" style={{ ...stickyCol, background: '#f8f9fb', verticalAlign: 'bottom', zIndex: 3 }}>Metric</th>
@@ -572,7 +572,7 @@ export default function TeamDashboard() {
               {/* Half-year table — rows: metrics, columns: H × agents */}
               <div className="section-title">Half-Year Team Summary — {rollupYear}</div>
               <div className="table-wrap">
-                <table className="sc-table">
+                <table className="sc-table" style={{ width: '100%' }}>
                   <thead>
                     <tr>
                       <th rowSpan={2} className="sticky-metric-head" style={{ ...stickyCol, background: '#f8f9fb', verticalAlign: 'bottom', zIndex: 3 }}>Metric</th>
