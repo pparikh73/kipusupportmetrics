@@ -64,7 +64,7 @@
 
 | Status | APT | Task | Area | Assignee | Due |
 |--------|-----|------|------|----------|-----|
-| `[✓]` | APT-36 | Build the rating calculation logic — frontend calculator built: counts only `counts_toward_score=true` metrics with data+goal; thresholds: 100%=Meets, 75–99%=Needs Improvement, <75%=Below. Exceeds tier pending client sign-off. DB view update pending Supabase admin. | Agent Perf + Team | Chad | — |
+| `[✅]` | APT-36 | Build the rating calculation logic — frontend calculator built: counts only `counts_toward_score=true` metrics with data+goal; thresholds: 100%=Meets, 75–99%=Needs Improvement, <75%=Below. DB summary view updated to match. Exceeds tier pending client sign-off. | Agent Perf + Team | Chad | — |
 | `[✅]` | APT-41 | Add the time period toggle (Monthly/Quarterly/Half-Year/YTD/Trend) | Agent Perf | Angelique | 29-May |
 | `[✅]` | APT-42 | Build the rating calculation logic | Team Dashboard | — | — |
 | `[ ]` | APT-47 | Add team-first selection with recalculation | Agent Perf | Chad | 1-Jun |
