@@ -104,6 +104,7 @@
 | `[✓]` | APT-81 | Show correct historical goal per month (goals change quarterly — viewing a backdated month must show the goal that was active then, not today's goal). Implemented via frontend overlay: `getActiveGoals()` queries goals filtered by date range, then the correct goal/tolerance/status is applied before display. No Supabase view change needed. | Goals | L | Frontend overlay — no schema change | Chad | TBD |
 | `[ ]` | APT-80 | Allow metrics to be toggled per team | Admin | L | New table: `metrics_group_metric_visibility` | Chad | 1-Jun |
 | `[ ]` | APT-77 | Restructure goals to be role-based | Goals | XL | Add `role` dimension to `metrics_group_goals` | Chad | 1-Jun |
+| `[✓]` | APT-109 | Add Employment End Date to agent profile. Auto-sets agent inactive when date passes (checked on page load + on save). SQL: `ALTER TABLE metrics_agents ADD COLUMN IF NOT EXISTS employment_end_date date;` | Admin | S | Add `employment_end_date` date col to `metrics_agents` | Chad | — |
 
 *APT-91 appears in both groups: showing `created_at` (no schema change, done ✅) vs. showing `created_by` supervisor name (schema change, still pending).
 

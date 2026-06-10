@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { getAllAgents, upsertAgent, getAgentTeamAssignments, deleteTeamAssignment, getTeams, upsertTeamAssignment } from '../../lib/api'
+import { getAllAgents, upsertAgent, autoDeactivateExpiredAgents, getAgentTeamAssignments, deleteTeamAssignment, getTeams, upsertTeamAssignment } from '../../lib/api'
 import Modal from '../../components/Modal'
 
 export default function AdminAgents() {
@@ -19,19 +19,26 @@ export default function AdminAgents() {
   const [newAssignTeamId, setNewAssignTeamId] = useState('')
   const [newAssignMonth, setNewAssignMonth] = useState('')
 
-  const load = () => {
+  const load = async () => {
     setLoading(true)
-    getAllAgents()
-      .then((rows) => {
-        setAllRows(rows)
-        const deepId = searchParams.get('agent')
-        if (deepId) {
-          const target = rows.find((r) => String(r.id) === deepId)
-          if (target) setEditing({ ...target })
-        }
-      })
-      .catch((e) => setError(e.message))
-      .finally(() => setLoading(false))
+    try {
+      await autoDeactivateExpiredAgents()
+    } catch (_) {
+      // Column may not exist yet — silently skip
+    }
+    try {
+      const rows = await getAllAgents()
+      setAllRows(rows)
+      const deepId = searchParams.get('agent')
+      if (deepId) {
+        const target = rows.find((r) => String(r.id) === deepId)
+        if (target) setEditing({ ...target })
+      }
+    } catch (e) {
+      setError(e.message)
+    } finally {
+      setLoading(false)
+    }
   }
 
   useEffect(() => { load() }, [])
@@ -56,6 +63,11 @@ export default function AdminAgents() {
       const payload = { ...editing }
       if (payload.hire_date === '') payload.hire_date = null
       if (payload.go_live_date === '') payload.go_live_date = null
+      if (payload.employment_end_date === '') payload.employment_end_date = null
+      if (payload.employment_end_date) {
+        const today = new Date().toISOString().slice(0, 10)
+        if (payload.employment_end_date <= today) payload.active = false
+      }
       await upsertAgent(payload)
       setEditing(null)
       load()
@@ -110,7 +122,7 @@ export default function AdminAgents() {
         </div>
         <div style={{ marginLeft: 'auto' }}>
           <button className="btn btn-primary" onClick={() => setEditing({
-            agent_name: '', role: '', supervisor_id: null, hire_date: '', go_live_date: '', notes: '', active: true,
+            agent_name: '', role: '', supervisor_id: null, hire_date: '', go_live_date: '', employment_end_date: '', notes: '', active: true,
           })}>+ Add Agent</button>
         </div>
       </div>
@@ -124,6 +136,7 @@ export default function AdminAgents() {
                 <th>Role</th>
                 <th>Hire Date</th>
                 <th>Go-Live Date</th>
+                <th>End Date</th>
                 <th>Active</th>
                 <th>Notes</th>
                 <th></th>
@@ -136,13 +149,14 @@ export default function AdminAgents() {
                   <td style={{ fontSize: 12, color: '#6b7a8d' }}>{r.role ?? '—'}</td>
                   <td style={{ fontSize: 12 }}>{r.hire_date ?? '—'}</td>
                   <td style={{ fontSize: 12 }}>{r.go_live_date ?? '—'}</td>
+                  <td style={{ fontSize: 12, color: r.employment_end_date ? '#842029' : '#9ca3af' }}>{r.employment_end_date ?? '—'}</td>
                   <td><span style={{ color: r.active ? '#1a6e3a' : '#842029', fontWeight: 600, fontSize: 12 }}>{r.active ? 'Yes' : 'No'}</span></td>
                   <td style={{ fontSize: 12, color: '#6b7a8d', maxWidth: 200 }}>{r.notes ?? '—'}</td>
                   <td><button className="btn btn-sm btn-secondary" onClick={() => setEditing({ ...r })}>Edit</button></td>
                 </tr>
               ))}
               {displayRows.length === 0 && (
-                <tr><td colSpan={7} style={{ textAlign: 'center', padding: 32, color: '#6b7a8d' }}>No agents match the current filters.</td></tr>
+                <tr><td colSpan={8} style={{ textAlign: 'center', padding: 32, color: '#6b7a8d' }}>No agents match the current filters.</td></tr>
               )}
             </tbody>
           </table>
@@ -216,6 +230,16 @@ export default function AdminAgents() {
                 value={editing.go_live_date ?? ''}
                 onChange={(e) => setEditing({ ...editing, go_live_date: e.target.value || null })}
               />
+            </div>
+            <div className="form-group">
+              <label className="form-label">Employment End Date</label>
+              <input
+                className="form-input"
+                type="date"
+                value={editing.employment_end_date ?? ''}
+                onChange={(e) => setEditing({ ...editing, employment_end_date: e.target.value || null })}
+              />
+              <span style={{ fontSize: 11, color: '#9ca3af', marginTop: 2 }}>Auto-sets inactive when date passes</span>
             </div>
           </div>
           <div className="form-group" style={{ marginBottom: 12 }}>

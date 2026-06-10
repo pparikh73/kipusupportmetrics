@@ -54,7 +54,7 @@ export async function getAgents({ groupId, activeOnly = true } = {}) {
     const ids = assignments.map((a) => a.agent_id)
     let q = supabase
       .from('metrics_agents')
-      .select('id, agent_name, active, role, hire_date, go_live_date, notes')
+      .select('id, agent_name, active, role, hire_date, go_live_date, employment_end_date, notes')
       .in('id', ids)
       .order('agent_name')
     if (activeOnly) q = q.eq('active', true)
@@ -64,7 +64,7 @@ export async function getAgents({ groupId, activeOnly = true } = {}) {
   }
   let query = supabase
     .from('metrics_agents')
-    .select('id, agent_name, active, role, hire_date, go_live_date, notes')
+    .select('id, agent_name, active, role, hire_date, go_live_date, employment_end_date, notes')
     .order('agent_name')
   if (activeOnly) query = query.eq('active', true)
   const { data, error } = await query
@@ -79,6 +79,17 @@ export async function getAllAgents() {
     .order('agent_name')
   if (error) throw error
   return data
+}
+
+export async function autoDeactivateExpiredAgents() {
+  const today = new Date().toISOString().slice(0, 10)
+  const { error } = await supabase
+    .from('metrics_agents')
+    .update({ active: false })
+    .lte('employment_end_date', today)
+    .eq('active', true)
+    .not('employment_end_date', 'is', null)
+  if (error) throw error
 }
 
 export async function upsertAgent(row) {
