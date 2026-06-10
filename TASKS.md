@@ -43,7 +43,7 @@
 | `[~]` | APT-46 | Show goal, actual, tolerance, and status for each metric — partial work done, tolerance + goal values need fixing (see Rework Log) | Team Dashboard | Angelique | 1-Jun |
 | `[✅]` | APT-60 | Make the left panel collapsible | All | Angelique | 29-May |
 | `[✅]` | APT-61 | Keep filters persistent across tabs (team, agent, month, year) | All | Angelique | 29-May |
-| `[ ]` | APT-62 | Use the full screen width | All | Chad | 1-Jun |
+| `[~]` | APT-62 | Use the full screen width — Trend + Team Dashboard tables now full width on staging; Monthly/YTD/Quarterly/Half-Year stay compact. On hold: waiting for client input on whether additional data can fill the blank space in Quarterly/Half-Year views before promoting to live. | All | Chad | 1-Jun |
 | `[ ]` | APT-68 | Show the rating distribution | Team Dashboard | Chad | 1-Jun |
 | `[ ]` | APT-69 | Fix supervisors showing under Leadership | Team Dashboard | Chad | 1-Jun |
 | `[✅]` | APT-70 | Clean up the quarterly view (dropdown, separators) | Team Dashboard | Angelique | 29-May |
