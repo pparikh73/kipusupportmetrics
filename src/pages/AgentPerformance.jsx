@@ -157,7 +157,7 @@ function RollupTable({ title, periods, configuredMetrics, yearDetail }) {
     <>
       <div className="section-title">{title}</div>
       <div className="table-wrap">
-        <table className="sc-table" style={{ width: '100%' }}>
+        <table className="sc-table">
           <thead>
             <tr>
               <th className="sticky-metric-head" style={{ minWidth: 160, position: 'sticky', left: 0, zIndex: 2 }}>Metric</th>
