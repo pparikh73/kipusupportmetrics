@@ -148,7 +148,6 @@ export default function AttendanceEntry() {
   // Holiday panel
   const [showHolidays, setShowHolidays]       = useState(false)
   const [overwriteExisting, setOverwriteExisting] = useState(false)
-  const [holidayCodeId, setHolidayCodeId]     = useState('')
 
   // Single-cell modal
   const [editCell, setEditCell] = useState(null)
@@ -260,14 +259,14 @@ export default function AttendanceEntry() {
   }
 
   function applyHoliday(dateISO, agentList) {
-    const codeId = Number(holidayCodeId)
-    if (!codeId) { setError('Select a holiday code first.'); return }
+    const hCode = codeByCode['H']
+    if (!hCode) { setError("No 'H' attendance code found — add a code with code='H' in Attendance Codes."); return }
     const next = { ...pendingMap }
     agentList.forEach((agent) => {
       const key = `${agent.id}:${dateISO}`
       const hasData = savedMap[key] || (key in pendingMap && pendingMap[key] !== null)
       if (!overwriteExisting && hasData) return
-      next[key] = { codeId, notes: '' }
+      next[key] = { codeId: hCode.id, notes: '' }
     })
     setPendingMap(next)
   }
@@ -474,9 +473,6 @@ export default function AttendanceEntry() {
           holidays={holidays}
           agents={displayAgents}
           selectedAgents={selectedAgentsArray}
-          codes={codes}
-          holidayCodeId={holidayCodeId}
-          setHolidayCodeId={setHolidayCodeId}
           overwriteExisting={overwriteExisting}
           setOverwriteExisting={setOverwriteExisting}
           onApply={applyHoliday}
@@ -727,7 +723,7 @@ export default function AttendanceEntry() {
 
 // ── Holiday panel ─────────────────────────────────────────────────────────────
 
-function HolidayPanel({ holidays, agents, selectedAgents, codes, holidayCodeId, setHolidayCodeId, overwriteExisting, setOverwriteExisting, onApply }) {
+function HolidayPanel({ holidays, agents, selectedAgents, overwriteExisting, setOverwriteExisting, onApply }) {
   if (holidays.length === 0) {
     return (
       <div style={{ background: '#f8f9fb', border: '1px solid #e2e6ea', borderRadius: 8, padding: '12px 16px', marginBottom: 12, fontSize: 13, color: '#6b7a8d' }}>
@@ -738,19 +734,9 @@ function HolidayPanel({ holidays, agents, selectedAgents, codes, holidayCodeId, 
 
   return (
     <div style={{ background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 8, padding: '12px 16px', marginBottom: 12 }}>
-      <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 12, marginBottom: 10 }}>
-        <span style={{ fontSize: 13, fontWeight: 700, color: '#1e40af' }}>Suggested US Holidays This Month</span>
-        <select
-          className="filter-select"
-          style={{ minWidth: 200, height: 30, fontSize: 12 }}
-          value={holidayCodeId}
-          onChange={(e) => setHolidayCodeId(e.target.value)}
-        >
-          <option value="">— Select holiday code —</option>
-          {codes.map((c) => (
-            <option key={c.id} value={c.id}>{c.code} — {c.code_name}</option>
-          ))}
-        </select>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 10, flexWrap: 'wrap' }}>
+        <span style={{ fontSize: 13, fontWeight: 700, color: '#1e40af' }}>US Holidays This Month</span>
+        <span style={{ fontSize: 11, color: '#6b7a8d' }}>Applies code: <strong>H</strong></span>
         <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: '#374151', cursor: 'pointer' }}>
           <input type="checkbox" checked={overwriteExisting} onChange={(e) => setOverwriteExisting(e.target.checked)} />
           Overwrite existing entries
