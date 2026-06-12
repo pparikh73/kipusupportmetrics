@@ -291,7 +291,20 @@ export async function upsertAgentMonthNote({ agentId, noteMonth, noteText, creat
     .upsert(row, { onConflict: 'agent_id,metric_month' })
     .select()
     .single()
-  if (error) throw error
+  if (error) {
+    // If created_by column doesn't exist in DB yet, retry without it so the note still saves
+    if (error.message?.includes('created_by') && row.created_by !== undefined) {
+      delete row.created_by
+      const { data: d2, error: e2 } = await supabase
+        .from('metrics_agent_monthly_notes')
+        .upsert(row, { onConflict: 'agent_id,metric_month' })
+        .select()
+        .single()
+      if (e2) throw e2
+      return d2
+    }
+    throw error
+  }
   return data
 }
 
