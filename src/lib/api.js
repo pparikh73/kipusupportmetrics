@@ -257,15 +257,19 @@ export async function getTrends({ agentId, groupId, year } = {}) {
 // Returns goals that were active during the given month (YYYY-MM or YYYY-MM-01).
 // Used by the frontend to show the historically correct goal when viewing a past month.
 export async function getActiveGoals({ groupId, month }) {
-  const dateParam = toDateParam(month)
-  if (!dateParam || !groupId) return []
+  if (!month || !groupId) return []
+  // Use the full month window so a goal starting mid-month is still matched
+  const [year, mon] = month.split('-').map(Number)
+  const firstDay = `${String(year)}-${String(mon).padStart(2, '0')}-01`
+  const lastDayDate = new Date(year, mon, 0) // day 0 of next month = last day of this month
+  const lastDay = `${lastDayDate.getFullYear()}-${String(lastDayDate.getMonth() + 1).padStart(2, '0')}-${String(lastDayDate.getDate()).padStart(2, '0')}`
   const { data, error } = await supabase
     .from('metrics_group_goals')
     .select('metric_id, goal_value, tolerance_value, metrics_definitions(metric_key)')
     .eq('group_id', Number(groupId))
     .eq('active', true)
-    .lte('effective_start_month', dateParam)
-    .or(`effective_end_month.is.null,effective_end_month.gte.${dateParam}`)
+    .lte('effective_start_month', lastDay)
+    .or(`effective_end_month.is.null,effective_end_month.gte.${firstDay}`)
   if (error) throw error
   return data
 }

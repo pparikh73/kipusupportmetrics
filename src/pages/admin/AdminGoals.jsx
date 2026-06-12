@@ -26,10 +26,10 @@ export default function AdminGoals() {
   useEffect(() => savePref('ktp_goals_from', rangeFrom), [rangeFrom])
   useEffect(() => savePref('ktp_goals_to', rangeTo), [rangeTo])
 
-  // First day of the current month — used to identify expired goals
-  const thisMonthStr = useMemo(() => {
+  // Today's date string — used to identify expired goals
+  const todayStr = useMemo(() => {
     const d = new Date()
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01`
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
   }, [])
 
   const load = () => {
@@ -50,16 +50,8 @@ export default function AdminGoals() {
       payload.metric_id = Number(payload.metric_id)
       payload.goal_value = payload.goal_value !== '' ? Number(payload.goal_value) : null
       payload.tolerance_value = payload.tolerance_value !== '' ? Number(payload.tolerance_value) : null
-      if (!payload.effective_start_month) {
-        payload.effective_start_month = null
-      } else if (payload.effective_start_month.length === 7) {
-        payload.effective_start_month = payload.effective_start_month + '-01'
-      }
-      if (!payload.effective_end_month) {
-        payload.effective_end_month = null
-      } else if (payload.effective_end_month.length === 7) {
-        payload.effective_end_month = payload.effective_end_month + '-01'
-      }
+      if (!payload.effective_start_month) payload.effective_start_month = null
+      if (!payload.effective_end_month) payload.effective_end_month = null
       await upsertGroupGoal(payload)
       setEditing(null)
       load()
@@ -75,20 +67,18 @@ export default function AdminGoals() {
   const displayGoals = goals
     .filter((g) => !teamFilter || String(g.group_id) === teamFilter)
     .filter((g) => {
-      const start = g.effective_start_month  // YYYY-MM-01 or null
-      const end   = g.effective_end_month    // YYYY-MM-01 or null
+      const start = g.effective_start_month  // YYYY-MM-DD or null
+      const end   = g.effective_end_month    // YYYY-MM-DD or null
 
       if (rangeFrom || rangeTo) {
-        const from = rangeFrom ? rangeFrom + '-01' : null
-        const to   = rangeTo   ? rangeTo   + '-01' : null
         // Exclude if goal ended before the range starts
-        if (from && end && end < from) return false
+        if (rangeFrom && end && end < rangeFrom) return false
         // Exclude if goal started after the range ends
-        if (to && start && start > to) return false
+        if (rangeTo && start && start > rangeTo) return false
       }
 
-      // Without "show expired": hide goals that have already ended
-      if (!showHistory && end && end < thisMonthStr) return false
+      // Without "show expired": hide goals that ended before today
+      if (!showHistory && end && end < todayStr) return false
 
       return true
     })
@@ -135,20 +125,20 @@ export default function AdminGoals() {
           </select>
         </div>
         <div className="filter-group">
-          <label className="filter-label">From Month</label>
+          <label className="filter-label">From Date</label>
           <input
             className="filter-select"
-            type="month"
+            type="date"
             style={{ minWidth: 150 }}
             value={rangeFrom}
             onChange={(e) => setRangeFrom(e.target.value)}
           />
         </div>
         <div className="filter-group">
-          <label className="filter-label">To Month</label>
+          <label className="filter-label">To Date</label>
           <input
             className="filter-select"
-            type="month"
+            type="date"
             style={{ minWidth: 150 }}
             value={rangeTo}
             onChange={(e) => setRangeTo(e.target.value)}
@@ -191,8 +181,8 @@ export default function AdminGoals() {
                       <th>Unit</th>
                       <th>Goal Value</th>
                       <th>Tolerance</th>
-                      <th>Start Month</th>
-                      <th>End Month</th>
+                      <th>Start Date</th>
+                      <th>End Date</th>
                       <th>Active</th>
                       <th></th>
                     </tr>
@@ -257,20 +247,20 @@ export default function AdminGoals() {
           </div>
           <div className="form-row">
             <div className="form-group">
-              <label className="form-label">Start Month</label>
+              <label className="form-label">Start Date</label>
               <input
                 className="form-input"
-                type="month"
-                value={editing.effective_start_month ? editing.effective_start_month.slice(0, 7) : ''}
+                type="date"
+                value={editing.effective_start_month ?? ''}
                 onChange={(e) => setEditing({ ...editing, effective_start_month: e.target.value || null })}
               />
             </div>
             <div className="form-group">
-              <label className="form-label">End Month <span style={{ fontSize: 11, color: '#9ca3af', fontWeight: 400 }}>(leave blank if still active)</span></label>
+              <label className="form-label">End Date <span style={{ fontSize: 11, color: '#9ca3af', fontWeight: 400 }}>(leave blank if still active)</span></label>
               <input
                 className="form-input"
-                type="month"
-                value={editing.effective_end_month ? editing.effective_end_month.slice(0, 7) : ''}
+                type="date"
+                value={editing.effective_end_month ?? ''}
                 onChange={(e) => setEditing({ ...editing, effective_end_month: e.target.value || null })}
               />
             </div>
