@@ -53,7 +53,7 @@
 | `[✅]` | APT-78 | Hide inactive agents from dashboards | Agent Perf / Team | Angelique | 29-May |
 | `[✅]` | APT-79 | Add an active/inactive filter | Agent Perf / Team | Angelique | 29-May |
 | `[✅]` | APT-82 | Add year and month dropdowns to attendance | Attendance | Angelique | 29-May |
-| `[ ]` | APT-85 | Fix bulk apply to selected agents | Attendance | Chad | 1-Jun |
+| `[✓]` | APT-85 | Fix bulk apply to selected agents — cell click now toggles date selection when agents are checked; added "Clear Selected Cells" bulk button; hint shown when no dates selected yet | Attendance | Chad | 1-Jun |
 | `[✅]` | APT-86 | Hide inactive agents from attendance | Attendance | Angelique | 29-May |
 | `[✓]` | APT-87 | Verify attendance saves across sessions | Attendance | Angelique | 29-May |
 | `[ ]` | APT-89 | Add a notes field to the agent view | Agent Perf | Chad | 1-Jun |
@@ -75,7 +75,7 @@
 | `[✅]` | APT-66 | Add a team leaderboard | Team Dashboard | Angelique | 29-May |
 | `[✅]` | APT-75 | Merge team assignments into the agent profile | Admin | Angelique | 29-May |
 | `[ ]` | APT-83 | Add an All Months bulk option | Attendance | Chad | 1-Jun |
-| `[ ]` | APT-84 | Allow bulk holiday application | Attendance | Chad | 1-Jun |
+| `[✓]` | APT-84 | Allow bulk holiday application — holiday panel now has a code dropdown (no more hardcoded H/HOL); "Apply to selected" always visible (greyed when no agents checked); "Apply to all N agents" always available | Attendance | Chad | 1-Jun |
 
 ### L — 1–2 days each
 
@@ -144,6 +144,7 @@ These tasks are about confirming data accuracy and signing off on the tool with 
 | APT-46 | Admin > Goals → Edit any goal → Start Month and End Month are now date pickers (click to choose month/year) — tested and confirmed ✓ |
 | APT-91 | Agent Perf → supervisor dropdown above Save Note, Hide/Show Notes toggle, created_by saved with note; Admin > Notes → Created By is now a supervisor dropdown — tested and confirmed ✓ |
 | APT-81 | Agent Perf + Team Dashboard → navigate to a past month → the **Goal** and **Tolerance** columns should show the values that were active during that month, not today's values. To test: set a goal with Start Month = Jan 2026 and End Month = Mar 2026, then view an agent's January scorecard — that goal should appear. View April — a different (or no) goal should appear. |
+| APT-84 + APT-85 + APT-114 | Attendance Entry → (1) Check 2+ agent rows → click any cell → the date column should become selected (not open a popup) → choose a code → "Apply to Selected Cells" should enable and apply. (2) After applying, select cells again and click "Clear Selected Cells" — entries should be removed. (3) Click "US Holidays This Month" → choose a holiday code from the new dropdown → "Apply to all N agents" and "Apply to selected" buttons should apply the holiday code correctly. |
 
 ---
 

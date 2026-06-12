@@ -135,6 +135,7 @@ export default function AttendanceEntry() {
   // Holiday panel
   const [showHolidays, setShowHolidays]       = useState(false)
   const [overwriteExisting, setOverwriteExisting] = useState(false)
+  const [holidayCodeId, setHolidayCodeId]     = useState('')
 
   // Single-cell modal
   const [editCell, setEditCell] = useState(null)
@@ -245,14 +246,14 @@ export default function AttendanceEntry() {
   }
 
   function applyHoliday(dateISO, agentList) {
-    const hCode = codeByCode['H'] || codeByCode['HOL']
-    if (!hCode) { setError("No holiday code (H or HOL) found — add one in Attendance Codes."); return }
+    const codeId = Number(holidayCodeId)
+    if (!codeId) { setError('Select a holiday code first.'); return }
     const next = { ...pendingMap }
     agentList.forEach((agent) => {
       const key = `${agent.id}:${dateISO}`
       const hasData = savedMap[key] || (key in pendingMap && pendingMap[key] !== null)
       if (!overwriteExisting && hasData) return
-      next[key] = { codeId: hCode.id, notes: '' }
+      next[key] = { codeId, notes: '' }
     })
     setPendingMap(next)
   }
@@ -263,6 +264,18 @@ export default function AttendanceEntry() {
     selectedAgentIds.forEach((agentId) => {
       selectedDates.forEach((dateISO) => {
         next[`${agentId}:${dateISO}`] = { codeId: Number(bulkCodeId), notes: '' }
+      })
+    })
+    setPendingMap(next)
+  }
+
+  function bulkClear() {
+    if (!selectedAgentIds.size || !selectedDates.size) return
+    const next = { ...pendingMap }
+    selectedAgentIds.forEach((agentId) => {
+      selectedDates.forEach((dateISO) => {
+        const key = `${agentId}:${dateISO}`
+        savedMap[key] ? (next[key] = null) : (delete next[key])
       })
     })
     setPendingMap(next)
@@ -431,8 +444,11 @@ export default function AttendanceEntry() {
       {showHolidays && (
         <HolidayPanel
           holidays={holidays}
-          agents={agents}
+          agents={displayAgents}
           selectedAgents={selectedAgentsArray}
+          codes={codes}
+          holidayCodeId={holidayCodeId}
+          setHolidayCodeId={setHolidayCodeId}
           overwriteExisting={overwriteExisting}
           setOverwriteExisting={setOverwriteExisting}
           onApply={applyHoliday}
@@ -450,6 +466,11 @@ export default function AttendanceEntry() {
             {selectedAgentIds.size} agent{selectedAgentIds.size !== 1 ? 's' : ''} ×{' '}
             {selectedDates.size} date{selectedDates.size !== 1 ? 's' : ''} selected
           </span>
+          {selectedDates.size === 0 && (
+            <span style={{ fontSize: 12, color: '#0369a1', fontStyle: 'italic' }}>
+              — click any cell in the grid to select dates
+            </span>
+          )}
           <select
             className="filter-select"
             style={{ minWidth: 200 }}
@@ -467,6 +488,13 @@ export default function AttendanceEntry() {
             disabled={!hasSelections || !bulkCodeId}
           >
             Apply to Selected Cells
+          </button>
+          <button
+            className="btn btn-danger"
+            onClick={bulkClear}
+            disabled={!hasSelections}
+          >
+            Clear Selected Cells
           </button>
           <button
             className="btn btn-secondary"
@@ -564,8 +592,8 @@ export default function AttendanceEntry() {
                           }}
                         >
                           <button
-                            onClick={() => setEditCell({ agentId: agent.id, dateISO: iso, date: d, agent })}
-                            title={cell ? `${cell.code} — ${cell.code_name}${isPending ? ' (unsaved)' : ''}` : iso}
+                            onClick={() => selectedAgentIds.size > 0 ? toggleDate(iso) : setEditCell({ agentId: agent.id, dateISO: iso, date: d, agent })}
+                            title={selectedAgentIds.size > 0 ? `Click to ${selectedDates.has(iso) ? 'deselect' : 'select'} ${iso} for bulk apply` : (cell ? `${cell.code} — ${cell.code_name}${isPending ? ' (unsaved)' : ''}` : iso)}
                             style={{
                               width: '100%',
                               minWidth: 30,
@@ -648,7 +676,7 @@ export default function AttendanceEntry() {
 
 // ── Holiday panel ─────────────────────────────────────────────────────────────
 
-function HolidayPanel({ holidays, agents, selectedAgents, overwriteExisting, setOverwriteExisting, onApply }) {
+function HolidayPanel({ holidays, agents, selectedAgents, codes, holidayCodeId, setHolidayCodeId, overwriteExisting, setOverwriteExisting, onApply }) {
   if (holidays.length === 0) {
     return (
       <div style={{ background: '#f8f9fb', border: '1px solid #e2e6ea', borderRadius: 8, padding: '12px 16px', marginBottom: 12, fontSize: 13, color: '#6b7a8d' }}>
@@ -659,8 +687,19 @@ function HolidayPanel({ holidays, agents, selectedAgents, overwriteExisting, set
 
   return (
     <div style={{ background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 8, padding: '12px 16px', marginBottom: 12 }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+      <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 12, marginBottom: 10 }}>
         <span style={{ fontSize: 13, fontWeight: 700, color: '#1e40af' }}>Suggested US Holidays This Month</span>
+        <select
+          className="filter-select"
+          style={{ minWidth: 200, height: 30, fontSize: 12 }}
+          value={holidayCodeId}
+          onChange={(e) => setHolidayCodeId(e.target.value)}
+        >
+          <option value="">— Select holiday code —</option>
+          {codes.map((c) => (
+            <option key={c.id} value={c.id}>{c.code} — {c.code_name}</option>
+          ))}
+        </select>
         <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: '#374151', cursor: 'pointer' }}>
           <input type="checkbox" checked={overwriteExisting} onChange={(e) => setOverwriteExisting(e.target.checked)} />
           Overwrite existing entries
@@ -671,19 +710,19 @@ function HolidayPanel({ holidays, agents, selectedAgents, overwriteExisting, set
           <div key={h.iso} style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', fontSize: 12 }}>
             <span style={{ minWidth: 200, fontWeight: 500 }}>{h.name}</span>
             <span style={{ color: '#6b7a8d', minWidth: 90 }}>{h.iso}</span>
-            {selectedAgents.length > 0 && (
-              <button
-                className="btn btn-sm btn-secondary"
-                onClick={() => onApply(h.iso, selectedAgents)}
-              >
-                Apply to {selectedAgents.length} selected
-              </button>
-            )}
+            <button
+              className="btn btn-sm btn-secondary"
+              onClick={() => onApply(h.iso, selectedAgents)}
+              disabled={selectedAgents.length === 0}
+              title={selectedAgents.length === 0 ? 'Check agent rows first to use this option' : ''}
+            >
+              Apply to {selectedAgents.length > 0 ? `${selectedAgents.length} selected` : 'selected'}
+            </button>
             <button
               className="btn btn-sm btn-secondary"
               onClick={() => onApply(h.iso, agents)}
             >
-              Apply to all visible agents
+              Apply to all {agents.length} agents
             </button>
           </div>
         ))}
