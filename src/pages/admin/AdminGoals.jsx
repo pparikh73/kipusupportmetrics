@@ -2,6 +2,11 @@ import { useState, useEffect, useMemo } from 'react'
 import { getAllGroupGoals, upsertGroupGoal, getAllTeams, getAllMetricDefinitions } from '../../lib/api'
 import Modal from '../../components/Modal'
 
+function loadPref(key, fallback) {
+  try { const v = localStorage.getItem(key); return v !== null ? v : fallback } catch { return fallback }
+}
+function savePref(key, val) { try { localStorage.setItem(key, String(val)) } catch {} }
+
 export default function AdminGoals() {
   const [goals, setGoals]     = useState([])
   const [teams, setTeams]     = useState([])
@@ -11,10 +16,15 @@ export default function AdminGoals() {
   const [editing, setEditing] = useState(null)
   const [saving, setSaving]   = useState(false)
 
-  const [teamFilter, setTeamFilter] = useState('')
-  const [showHistory, setShowHistory] = useState(false)
-  const [rangeFrom, setRangeFrom] = useState('')
-  const [rangeTo, setRangeTo]     = useState('')
+  const [teamFilter, setTeamFilter] = useState(() => loadPref('ktp_goals_team', ''))
+  const [showHistory, setShowHistory] = useState(() => loadPref('ktp_goals_history', 'false') === 'true')
+  const [rangeFrom, setRangeFrom] = useState(() => loadPref('ktp_goals_from', ''))
+  const [rangeTo, setRangeTo]     = useState(() => loadPref('ktp_goals_to', ''))
+
+  useEffect(() => savePref('ktp_goals_team', teamFilter), [teamFilter])
+  useEffect(() => savePref('ktp_goals_history', showHistory), [showHistory])
+  useEffect(() => savePref('ktp_goals_from', rangeFrom), [rangeFrom])
+  useEffect(() => savePref('ktp_goals_to', rangeTo), [rangeTo])
 
   // First day of the current month — used to identify expired goals
   const thisMonthStr = useMemo(() => {
