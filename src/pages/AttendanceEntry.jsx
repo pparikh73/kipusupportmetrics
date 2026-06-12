@@ -28,6 +28,19 @@ function isWeekend(d) { return d.getDay() === 0 || d.getDay() === 6 }
 
 const DOW = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa']
 
+// Groups days into Mon→Sun weeks (first/last week may be partial)
+function getWeeks(days) {
+  if (!days.length) return []
+  const weeks = []
+  let current = []
+  days.forEach((d) => {
+    if (d.getDay() === 1 && current.length > 0) { weeks.push(current); current = [] }
+    current.push(d)
+  })
+  if (current.length) weeks.push(current)
+  return weeks
+}
+
 // ── US Holiday calculator ─────────────────────────────────────────────────────
 
 function nthWeekday(year, month, weekday, n) {
@@ -143,6 +156,7 @@ export default function AttendanceEntry() {
   // ── Derived constants ───────────────────────────────────────────────────────
 
   const allDays    = useMemo(() => getAllDays(month), [month])
+  const weeks      = useMemo(() => getWeeks(allDays), [allDays])
   const holidays   = useMemo(() => getUSHolidays(Number(attYear), Number(attMonth)), [attYear, attMonth])
   const holidayIsos = useMemo(() => new Set(holidays.map((h) => h.iso)), [holidays])
 
@@ -359,6 +373,20 @@ export default function AttendanceEntry() {
     }
   }
 
+  function toggleWeek(weekDays) {
+    const isos = weekDays.map(toIso)
+    const allSelected = isos.every((iso) => selectedDates.has(iso))
+    setSelectedDates((prev) => {
+      const next = new Set(prev)
+      if (allSelected) {
+        isos.forEach((iso) => next.delete(iso))
+      } else {
+        isos.forEach((iso) => next.add(iso))
+      }
+      return next
+    })
+  }
+
   // ── Render ──────────────────────────────────────────────────────────────────
 
   const editCellCurrent = editCell
@@ -518,9 +546,9 @@ export default function AttendanceEntry() {
         <div className="att-grid" style={{ overflowX: 'auto' }}>
           <table style={{ fontSize: 11, borderCollapse: 'collapse', minWidth: 600 }}>
             <thead>
+              {/* Week number row */}
               <tr>
-                {/* Agent select-all */}
-                <th style={{ padding: '4px 6px', textAlign: 'left', minWidth: 30, background: '#f8f9fb', position: 'sticky', left: 0, zIndex: 2 }}>
+                <th rowSpan={2} style={{ padding: '4px 6px', textAlign: 'left', minWidth: 30, background: '#f8f9fb', position: 'sticky', left: 0, zIndex: 3 }}>
                   <input
                     type="checkbox"
                     checked={displayAgents.length > 0 && selectedAgentIds.size === displayAgents.length}
@@ -528,11 +556,38 @@ export default function AttendanceEntry() {
                     title="Select all agents"
                   />
                 </th>
-                {/* Agent name */}
-                <th style={{ padding: '4px 8px', textAlign: 'left', minWidth: 150, background: '#f8f9fb', position: 'sticky', left: 30, zIndex: 2, whiteSpace: 'nowrap' }}>
+                <th rowSpan={2} style={{ padding: '4px 8px', textAlign: 'left', minWidth: 150, background: '#f8f9fb', position: 'sticky', left: 30, zIndex: 3, whiteSpace: 'nowrap' }}>
                   Agent
                 </th>
-                {/* Day columns */}
+                {weeks.map((weekDays, i) => {
+                  const isos = weekDays.map(toIso)
+                  const allSelected = isos.length > 0 && isos.every((iso) => selectedDates.has(iso))
+                  return (
+                    <th
+                      key={`wk-${i}`}
+                      colSpan={weekDays.length}
+                      onClick={() => toggleWeek(weekDays)}
+                      title={`Click to ${allSelected ? 'deselect' : 'select'} all days in Week ${i + 1}`}
+                      style={{
+                        textAlign: 'center', cursor: 'pointer', userSelect: 'none',
+                        background: allSelected ? '#3b82f6' : '#dbeafe',
+                        color: allSelected ? '#fff' : '#1e40af',
+                        fontWeight: 700, fontSize: 10,
+                        padding: '3px 0',
+                        borderBottom: '1px solid #bfdbfe',
+                        whiteSpace: 'nowrap',
+                      }}
+                    >
+                      Week {i + 1}
+                    </th>
+                  )
+                })}
+                <th rowSpan={2} style={{ padding: '4px 6px', textAlign: 'center', minWidth: 58, background: '#f8f9fb', whiteSpace: 'nowrap' }}>
+                  Att %
+                </th>
+              </tr>
+              {/* Day columns row */}
+              <tr>
                 {allDays.map((d) => {
                   const iso = toIso(d)
                   const bg = colHeaderBg(d, iso, holidayIsos)
@@ -550,10 +605,6 @@ export default function AttendanceEntry() {
                     </th>
                   )
                 })}
-                {/* Att% */}
-                <th style={{ padding: '4px 6px', textAlign: 'center', minWidth: 58, background: '#f8f9fb', whiteSpace: 'nowrap' }}>
-                  Att %
-                </th>
               </tr>
             </thead>
             <tbody>
