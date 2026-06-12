@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react'
-import { getAllGroupGoals, upsertGroupGoal, getAllTeams, getAllMetricDefinitions } from '../../lib/api'
+import { getAllGroupGoals, upsertGroupGoal, deleteGroupGoal, getAllTeams, getAllMetricDefinitions } from '../../lib/api'
 import Modal from '../../components/Modal'
 
 function loadPref(key, fallback) {
@@ -18,11 +18,13 @@ export default function AdminGoals() {
 
   const [teamFilter, setTeamFilter] = useState(() => loadPref('ktp_goals_team', ''))
   const [showHistory, setShowHistory] = useState(() => loadPref('ktp_goals_history', 'false') === 'true')
+  const [showInactive, setShowInactive] = useState(() => loadPref('ktp_goals_inactive', 'false') === 'true')
   const [rangeFrom, setRangeFrom] = useState(() => loadPref('ktp_goals_from', ''))
   const [rangeTo, setRangeTo]     = useState(() => loadPref('ktp_goals_to', ''))
 
   useEffect(() => savePref('ktp_goals_team', teamFilter), [teamFilter])
   useEffect(() => savePref('ktp_goals_history', showHistory), [showHistory])
+  useEffect(() => savePref('ktp_goals_inactive', showInactive), [showInactive])
   useEffect(() => savePref('ktp_goals_from', rangeFrom), [rangeFrom])
   useEffect(() => savePref('ktp_goals_to', rangeTo), [rangeTo])
 
@@ -62,23 +64,35 @@ export default function AdminGoals() {
     }
   }
 
+  const deleteGoal = async (id) => {
+    if (!window.confirm('Permanently delete this goal? This cannot be undone.')) return
+    try {
+      await deleteGroupGoal(id)
+      setEditing(null)
+      load()
+    } catch (e) {
+      setError(e.message)
+    }
+  }
+
   const activeMetrics = metrics.filter((m) => m.active)
 
   const displayGoals = goals
     .filter((g) => !teamFilter || String(g.group_id) === teamFilter)
     .filter((g) => {
+      // Hide inactive goals unless "Show inactive" is on
+      if (!showInactive && !g.active) return false
+
       const start = g.effective_start_month  // YYYY-MM-DD or null
       const end   = g.effective_end_month    // YYYY-MM-DD or null
 
       if (rangeFrom || rangeTo) {
-        // Exclude if goal ended before the range starts
         if (rangeFrom && end && end < rangeFrom) return false
-        // Exclude if goal started after the range ends
         if (rangeTo && start && start > rangeTo) return false
       }
 
-      // Without "show expired": hide goals that ended before today
-      if (!showHistory && end && end < todayStr) return false
+      // Without "show expired": hide active goals that ended before today
+      if (!showHistory && g.active && end && end < todayStr) return false
 
       return true
     })
@@ -144,10 +158,14 @@ export default function AdminGoals() {
             onChange={(e) => setRangeTo(e.target.value)}
           />
         </div>
-        <div className="filter-group" style={{ justifyContent: 'flex-end' }}>
+        <div className="filter-group" style={{ justifyContent: 'flex-end', gap: 14 }}>
           <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, cursor: 'pointer', color: '#6b7a8d', paddingTop: 18 }}>
             <input type="checkbox" checked={showHistory} onChange={(e) => setShowHistory(e.target.checked)} />
             Show expired
+          </label>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, cursor: 'pointer', color: '#6b7a8d', paddingTop: 18 }}>
+            <input type="checkbox" checked={showInactive} onChange={(e) => setShowInactive(e.target.checked)} />
+            Show inactive
           </label>
         </div>
         <div style={{ marginLeft: 'auto' }}>
@@ -214,6 +232,11 @@ export default function AdminGoals() {
           onClose={() => setEditing(null)}
           footer={
             <>
+              {editing.id && (
+                <button className="btn btn-danger" onClick={() => deleteGoal(editing.id)} style={{ marginRight: 'auto' }}>
+                  Delete Goal
+                </button>
+              )}
               <button className="btn btn-secondary" onClick={() => setEditing(null)}>Cancel</button>
               <button className="btn btn-primary" onClick={save} disabled={saving}>{saving ? 'Saving…' : 'Save'}</button>
             </>

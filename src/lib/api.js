@@ -199,6 +199,14 @@ export async function upsertGroupGoal(row) {
   return data
 }
 
+export async function deleteGroupGoal(id) {
+  const { error } = await supabase
+    .from('metrics_group_goals')
+    .delete()
+    .eq('id', id)
+  if (error) throw error
+}
+
 // ── Dashboard views ───────────────────────────────────────────────────────────
 
 // One row per agent/month/metric — primary scorecard source
