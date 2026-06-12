@@ -13,6 +13,8 @@ export default function AdminGoals() {
 
   const [teamFilter, setTeamFilter] = useState('')
   const [showHistory, setShowHistory] = useState(false)
+  const [rangeFrom, setRangeFrom] = useState('')
+  const [rangeTo, setRangeTo]     = useState('')
 
   // First day of the current month — used to identify expired goals
   const thisMonthStr = useMemo(() => {
@@ -62,7 +64,24 @@ export default function AdminGoals() {
 
   const displayGoals = goals
     .filter((g) => !teamFilter || String(g.group_id) === teamFilter)
-    .filter((g) => showHistory || !g.effective_end_month || g.effective_end_month >= thisMonthStr)
+    .filter((g) => {
+      const start = g.effective_start_month  // YYYY-MM-01 or null
+      const end   = g.effective_end_month    // YYYY-MM-01 or null
+
+      if (rangeFrom || rangeTo) {
+        const from = rangeFrom ? rangeFrom + '-01' : null
+        const to   = rangeTo   ? rangeTo   + '-01' : null
+        // Exclude if goal ended before the range starts
+        if (from && end && end < from) return false
+        // Exclude if goal started after the range ends
+        if (to && start && start > to) return false
+      }
+
+      // Without "show expired": hide goals that have already ended
+      if (!showHistory && end && end < thisMonthStr) return false
+
+      return true
+    })
 
   // Group goals by team, then sort within each team:
   // primary = metric name (groups duplicates together), secondary = no-end-date first, tertiary = newest start first
@@ -104,6 +123,26 @@ export default function AdminGoals() {
             <option value="">All Teams</option>
             {teams.map((t) => <option key={t.id} value={t.id}>{t.group_name}</option>)}
           </select>
+        </div>
+        <div className="filter-group">
+          <label className="filter-label">From Month</label>
+          <input
+            className="filter-select"
+            type="month"
+            style={{ minWidth: 150 }}
+            value={rangeFrom}
+            onChange={(e) => setRangeFrom(e.target.value)}
+          />
+        </div>
+        <div className="filter-group">
+          <label className="filter-label">To Month</label>
+          <input
+            className="filter-select"
+            type="month"
+            style={{ minWidth: 150 }}
+            value={rangeTo}
+            onChange={(e) => setRangeTo(e.target.value)}
+          />
         </div>
         <div className="filter-group" style={{ justifyContent: 'flex-end' }}>
           <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, cursor: 'pointer', color: '#6b7a8d', paddingTop: 18 }}>
