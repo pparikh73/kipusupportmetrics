@@ -27,3 +27,16 @@ HELP-025,How to Manage Agents,Top-right of the Agents page,Point to the "+ Add A
 HELP-026,How to Manage Agents,The agent profile pop-up (open it),"Show all fields: Name, Role, Reporting Supervisor, Hire Date, Go-Live Date, Employment End Date, Notes, Active",HELP-026.jpg
 HELP-027,How to Manage Agents,The agent profile pop-up,Point specifically to the Employment End Date field and its helper text,HELP-027.jpg
 HELP-028,How to Manage Agents,Bottom of a saved agent profile,Highlight the Team Assignments section with Add Team / Add,HELP-028.jpg
+HELP-029,How to Use Supervisor Notes,The Supervisor Note card on the Agent Performance page,"Show the full note card: text area, Supervisor dropdown, and Save Note button",HELP-029.jpg
+HELP-030,How to Use Supervisor Notes,The Supervisor dropdown inside the note card,Show the dropdown open with supervisor names listed,HELP-030.jpg
+HELP-031,How to Use Supervisor Notes,The Hide Notes / Show Notes toggle,Point to the toggle button at the top of the Supervisor Note card,HELP-031.jpg
+HELP-032,How to Use Supervisor Notes,The Admin Notes page (Metric Setup → Notes),"Show the full table: Agent, Month, Note, Created By columns and the + Add Note button",HELP-032.jpg
+HELP-033,How to Use Supervisor Notes,The Add/Edit Note pop-up,"All fields visible: Agent, Month, Note text area, Created By dropdown",HELP-033.jpg
+HELP-034,How to Manage Teams and Team Assignments,The Teams page listing all teams,"Show Team Name, Key, Display Order, Active columns",HELP-034.jpg
+HELP-035,How to Manage Teams and Team Assignments,Top of the Teams page,Point to the "+ Add Team" button,HELP-035.jpg
+HELP-036,How to Manage Teams and Team Assignments,The Add Team pop-up (open it),"All fields visible: Team Name, Key, Display Order, Active checkbox",HELP-036.jpg
+HELP-037,How to Manage Teams and Team Assignments,The Team Assignments page,Show the Agent and Team filter dropdowns and the assignments table,HELP-037.jpg
+HELP-038,How to Manage Teams and Team Assignments,The Add Assignment pop-up (open it),"All fields visible: Agent, Team, Start Month, End Month, Active checkbox",HELP-038.jpg
+HELP-039,How to Read the Attendance Summary Page,The full Attendance Summary page,Show the complete page including filter bar and the summary table,HELP-039.jpg
+HELP-040,How to Read the Attendance Summary Page,The Attendance Summary filter bar,Highlight the Month and Team selectors,HELP-040.jpg
+HELP-041,How to Read the Attendance Summary Page,The Attendance Summary table,"Highlight Agent, Scheduled Days, Available Days, and Attendance % columns — show colour-coded percentage values",HELP-041.jpg

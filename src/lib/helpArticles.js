@@ -560,6 +560,282 @@ export const ARTICLES = [
       { type: 'shot', id: 'HELP-028', caption: 'The Team Assignments section at the bottom of the agent profile.' },
     ],
   },
+
+  // ─────────────────────────────────────────────────────────────────────────
+  {
+    id: 'notes',
+    title: 'How to Use Supervisor Notes',
+    category: 'Daily Use',
+    summary:
+      'Record a coaching note during a 1:1, hide it while screen-sharing with the agent, and manage all notes across the team from the Admin Notes section.',
+    blocks: [
+      { type: 'h2', text: 'What supervisor notes are for' },
+      {
+        type: 'p',
+        text:
+          'A **supervisor note** is a private coaching record attached to a specific agent and month. It lets the supervisor capture what was discussed, any action items, or observed patterns — right alongside the scorecard — without the agent seeing it during the review.',
+      },
+      {
+        type: 'p',
+        text:
+          'Notes are written in the **Agent Performance** page during (or after) the 1:1. They can also be added, edited, or browsed in bulk from the **Admin Notes** section (Metric Setup → Notes).',
+      },
+
+      { type: 'h2', text: 'Writing a note during a 1:1' },
+      {
+        type: 'steps',
+        items: [
+          'Open the **Agent Performance** page and select the agent and month you are reviewing.',
+          'Scroll down to the **Supervisor Note** card below the scorecard.',
+          'Choose your name from the **Supervisor** dropdown.',
+          'Type the coaching note in the text area.',
+          'Click **Save Note**. The note is saved immediately with your name and the date.',
+        ],
+      },
+      { type: 'shot', id: 'HELP-029', caption: 'The full Supervisor Note card on the Agent Performance page.' },
+      { type: 'shot', id: 'HELP-030', caption: 'The Supervisor dropdown inside the note card — pick your name before saving.' },
+
+      { type: 'h2', text: 'Hiding the note while screen-sharing' },
+      {
+        type: 'p',
+        text:
+          'If you are sharing your screen with the agent during the review, you may not want the coaching note visible. Use the **Hide Notes / Show Notes** toggle at the top of the Supervisor Note card to collapse the section.',
+      },
+      {
+        type: 'list',
+        items: [
+          'Click **Hide Notes** — the note collapses and the toggle label changes to **Show Notes**.',
+          'Click **Show Notes** again when you want to bring it back.',
+          'The note itself is not deleted — it is just hidden on screen.',
+        ],
+      },
+      {
+        type: 'callout',
+        variant: 'tip',
+        text:
+          'Hide the note before you share your screen with the agent, then reveal it again after the call to review or update it.',
+      },
+      { type: 'shot', id: 'HELP-031', caption: 'The Hide Notes / Show Notes toggle button on the note card.' },
+
+      { type: 'h2', text: 'Managing notes in the Admin Notes section' },
+      {
+        type: 'p',
+        text:
+          'Go to **Metric Setup → Notes** in the sidebar to see every coaching note across all agents and months in one table. This is useful for managers who want to review what supervisors have written, or to fix a note added under the wrong agent or month.',
+      },
+      { type: 'shot', id: 'HELP-032', caption: 'The Admin Notes page showing all notes across agents and months.' },
+
+      { type: 'h2', text: 'Filtering notes' },
+      {
+        type: 'list',
+        items: [
+          '**Agent** — filter to see only notes for one specific agent.',
+          '**Month** — filter to see only notes recorded for a particular month.',
+          'Leave both filters blank to see everything.',
+        ],
+      },
+
+      { type: 'h2', text: 'Adding or editing a note from the Admin section' },
+      {
+        type: 'steps',
+        items: [
+          'To add: click **+ Add Note** in the top-right. Select the Agent, Month, type the note, and pick the supervisor from the Created By dropdown.',
+          'To edit: click **Edit** on any row. Change the note text or any other field and click **Save**.',
+        ],
+      },
+      {
+        type: 'callout',
+        variant: 'info',
+        text:
+          'The Created By field uses the supervisor list from the Agents section (anyone with the Supervisor role). If a name is missing from the dropdown, check that the person is set up as an agent with the Supervisor role.',
+      },
+      { type: 'shot', id: 'HELP-033', caption: 'The Add/Edit Note pop-up with the Agent, Month, Note, and Created By fields.' },
+    ],
+  },
+
+  // ─────────────────────────────────────────────────────────────────────────
+  {
+    id: 'teams',
+    title: 'How to Manage Teams and Team Assignments',
+    category: 'Setup',
+    summary:
+      'Create support teams, set their display order and active status, then assign agents to a team with effective date ranges so scorecards always show the right team membership.',
+    blocks: [
+      { type: 'h2', text: 'Teams vs. Team Assignments — what is the difference?' },
+      {
+        type: 'list',
+        items: [
+          '**Teams** (Admin → People & Assignment → Teams) — defines a team: its name, its short internal key, and whether it is active.',
+          '**Team Assignments** (Admin → People & Assignment → Team Assignments) — links a specific agent to a specific team, with optional start and end months so you can track team changes over time.',
+        ],
+      },
+      {
+        type: 'callout',
+        variant: 'info',
+        text:
+          'You must create the team first, then assign agents to it. An agent can belong to more than one team at the same time if their role spans teams.',
+      },
+
+      { type: 'h2', text: 'Creating a new team' },
+      {
+        type: 'steps',
+        items: [
+          'Go to **People & Assignment → Teams** in the sidebar.',
+          'Click **+ Add Team**.',
+          'Fill in the fields (explained below) and click **Save**.',
+        ],
+      },
+      { type: 'shot', id: 'HELP-034', caption: 'The Teams page listing all teams.' },
+      { type: 'shot', id: 'HELP-035', caption: 'The + Add Team button at the top of the Teams page.' },
+      { type: 'shot', id: 'HELP-036', caption: 'The Add Team pop-up with all of its fields.' },
+
+      { type: 'h2', text: 'Team fields explained' },
+      {
+        type: 'table',
+        headers: ['Field', 'What it means'],
+        rows: [
+          ['Team Name', 'The display name shown throughout the tool (e.g. "Billing", "CRM", "Implementations").'],
+          ['Key', 'A short internal code in snake_case (e.g. "billing", "crm"). Used internally to link data — keep it short, lowercase, and unique. Once set, avoid changing it.'],
+          ['Display Order', 'Controls the order teams appear in dropdowns and dashboards. Lower numbers appear first.'],
+          ['Active', 'Untick this to hide the team from all dropdowns and dashboards. All existing data is preserved.'],
+        ],
+      },
+
+      { type: 'h2', text: 'Making a team inactive' },
+      {
+        type: 'p',
+        text:
+          'If a team is dissolved or restructured, untick its **Active** switch rather than deleting it. The team disappears from all dropdowns, but all historical scorecard data is preserved. You can reactivate it at any time.',
+      },
+      {
+        type: 'callout',
+        variant: 'warning',
+        text:
+          'If you delete a team rather than deactivating it, any agent assignments and goals linked to that team will be broken. Always deactivate instead of delete.',
+      },
+
+      { type: 'h2', text: 'Assigning an agent to a team' },
+      {
+        type: 'p',
+        text:
+          'Team Assignments link agents to teams. Each assignment can carry **Start** and **End** months so the tool knows exactly which team an agent belonged to for each month — this matters for scorecard history.',
+      },
+      {
+        type: 'steps',
+        items: [
+          'Go to **People & Assignment → Team Assignments**.',
+          'Click **+ Add Assignment**.',
+          'Select the **Agent** and **Team** from the dropdowns.',
+          'Enter a **Start Month** (format YYYY-MM, e.g. 2026-01) if you know when the agent joined the team. Leave blank if it has always applied.',
+          'Enter an **End Month** only if the agent has already left that team. Leave blank if they are still on it.',
+          'Make sure **Active** is ticked, then click **Save**.',
+        ],
+      },
+      { type: 'shot', id: 'HELP-037', caption: 'The Team Assignments page with the Agent and Team filters.' },
+      { type: 'shot', id: 'HELP-038', caption: 'The Add Assignment pop-up (Agent, Team, Start Month, End Month, Active).' },
+
+      { type: 'h2', text: 'Using the filters on the Team Assignments page' },
+      {
+        type: 'list',
+        items: [
+          '**Agent** filter — show only assignments for one agent. Useful when checking which teams an agent belongs to.',
+          '**Team** filter — show only assignments for one team. Useful when checking who is on the team.',
+          'Leave both blank to see every assignment in the system.',
+        ],
+      },
+
+      { type: 'h2', text: 'A quicker way to assign teams from the agent profile' },
+      {
+        type: 'p',
+        text:
+          'You can also manage team assignments directly from an agent\'s profile. Open the agent in **People & Assignment → Agents**, scroll to the **Team Assignments** section at the bottom of the profile, pick a team, enter the start month, and click **Add**. See the "How to Manage Agents" article for more detail.',
+      },
+    ],
+  },
+
+  // ─────────────────────────────────────────────────────────────────────────
+  {
+    id: 'attendance-summary',
+    title: 'How to Read the Attendance Summary Page',
+    category: 'Daily Use',
+    summary:
+      'The Attendance Summary page gives a quick, calculated view of each agent\'s attendance percentage for a selected month — so you can see attendance health at a glance without opening the full entry grid.',
+    blocks: [
+      { type: 'h2', text: 'What this page is for' },
+      {
+        type: 'p',
+        text:
+          'The **Attendance Summary** page (under Attendance in the sidebar) shows a single number per agent for a given month: their **attendance percentage**, calculated from the daily codes that have been entered in the Attendance Entry grid.',
+      },
+      {
+        type: 'p',
+        text:
+          'Use it to quickly check team-wide attendance health, spot agents who are trending low, and report on a month without having to scroll through the full day-by-day grid.',
+      },
+      { type: 'shot', id: 'HELP-039', caption: 'The full Attendance Summary page.' },
+
+      { type: 'h2', text: 'Attendance Summary vs. Attendance Entry — what is the difference?' },
+      {
+        type: 'table',
+        headers: ['Page', 'What you do there'],
+        rows: [
+          ['Attendance Entry', 'Record attendance day by day (P, A, PTO, H, etc.). This is where data is entered and changed.'],
+          ['Attendance Summary', 'Read the calculated attendance percentage per agent for a month. Read-only — you cannot edit data here.'],
+        ],
+      },
+      {
+        type: 'callout',
+        variant: 'info',
+        text:
+          'If the summary looks wrong, go to Attendance Entry to check or correct the daily codes for that agent and month.',
+      },
+
+      { type: 'h2', text: 'Choosing the month and team' },
+      {
+        type: 'p',
+        text:
+          'Use the filter bar at the top to control what you are looking at:',
+      },
+      {
+        type: 'list',
+        items: [
+          '**Month** — select the month you want to review. The dropdown shows the last 18 months.',
+          '**Team** — narrow the list to one team. Leave on "All Teams" to see every agent.',
+        ],
+      },
+      { type: 'shot', id: 'HELP-040', caption: 'The Attendance Summary filter bar — Month and Team selectors.' },
+
+      { type: 'h2', text: 'Reading the summary table' },
+      {
+        type: 'table',
+        headers: ['Column', 'What it means'],
+        rows: [
+          ['Agent', 'The agent\'s name.'],
+          ['Scheduled Days', 'The number of working days the agent was expected to be present (excluding weekends, holidays, and PTO).'],
+          ['Available Days', 'The number of days the agent was actually present (coded as P or available).'],
+          ['Attendance %', 'Available Days ÷ Scheduled Days × 100. Colour-coded: green (90% +), amber (80–89%), red (below 80%).'],
+        ],
+      },
+      { type: 'shot', id: 'HELP-041', caption: 'The summary table showing Agent, Scheduled Days, Available Days, and colour-coded Attendance %.' },
+
+      { type: 'h2', text: 'What the colours mean' },
+      {
+        type: 'list',
+        items: [
+          '**Green** — attendance is 90% or above.',
+          '**Amber** — attendance is 80–89%, worth monitoring.',
+          '**Red** — attendance is below 80%, likely needs attention.',
+          '**Grey dash (—)** — no attendance data has been entered for this agent yet. Go to Attendance Entry to add records.',
+        ],
+      },
+      {
+        type: 'callout',
+        variant: 'tip',
+        text:
+          'Run a quick check at the start of each month to make sure the previous month\'s data is fully entered before sharing reports with leadership.',
+      },
+    ],
+  },
 ]
 
 // Master list of every screenshot placeholder — used to generate the CSV checklist
@@ -593,4 +869,17 @@ export const HELP_SCREENSHOTS = [
   { id: 'HELP-026', article: 'How to Manage Agents', shows: 'The agent profile pop-up (open it)', highlight: 'Show all fields: Name, Role, Reporting Supervisor, Hire Date, Go-Live Date, Employment End Date, Notes, Active' },
   { id: 'HELP-027', article: 'How to Manage Agents', shows: 'The agent profile pop-up', highlight: 'Point specifically to the Employment End Date field and its helper text' },
   { id: 'HELP-028', article: 'How to Manage Agents', shows: 'Bottom of a saved agent profile', highlight: 'Highlight the Team Assignments section with Add Team / Add' },
+  { id: 'HELP-029', article: 'How to Use Supervisor Notes', shows: 'The Supervisor Note card on the Agent Performance page', highlight: 'Show the full note card including the text area, Supervisor dropdown, and Save Note button' },
+  { id: 'HELP-030', article: 'How to Use Supervisor Notes', shows: 'The Supervisor dropdown inside the note card', highlight: 'Show the dropdown open with supervisor names listed' },
+  { id: 'HELP-031', article: 'How to Use Supervisor Notes', shows: 'The Hide Notes / Show Notes toggle', highlight: 'Point to the toggle button at the top of the Supervisor Note card' },
+  { id: 'HELP-032', article: 'How to Use Supervisor Notes', shows: 'The Admin Notes page (Metric Setup → Notes)', highlight: 'Show the full table: Agent, Month, Note, Created By columns and the + Add Note button' },
+  { id: 'HELP-033', article: 'How to Use Supervisor Notes', shows: 'The Add/Edit Note pop-up', highlight: 'All fields visible: Agent, Month, Note text area, Created By dropdown' },
+  { id: 'HELP-034', article: 'How to Manage Teams and Team Assignments', shows: 'The Teams page listing all teams', highlight: 'Show Team Name, Key, Display Order, Active columns' },
+  { id: 'HELP-035', article: 'How to Manage Teams and Team Assignments', shows: 'Top of the Teams page', highlight: 'Point to the "+ Add Team" button' },
+  { id: 'HELP-036', article: 'How to Manage Teams and Team Assignments', shows: 'The Add Team pop-up (open it)', highlight: 'All fields visible: Team Name, Key, Display Order, Active checkbox' },
+  { id: 'HELP-037', article: 'How to Manage Teams and Team Assignments', shows: 'The Team Assignments page', highlight: 'Show the Agent and Team filter dropdowns and the assignments table' },
+  { id: 'HELP-038', article: 'How to Manage Teams and Team Assignments', shows: 'The Add Assignment pop-up (open it)', highlight: 'All fields visible: Agent, Team, Start Month, End Month, Active checkbox' },
+  { id: 'HELP-039', article: 'How to Read the Attendance Summary Page', shows: 'The full Attendance Summary page', highlight: 'Show the complete page including filter bar and the summary table' },
+  { id: 'HELP-040', article: 'How to Read the Attendance Summary Page', shows: 'The Attendance Summary filter bar', highlight: 'Highlight the Month and Team selectors' },
+  { id: 'HELP-041', article: 'How to Read the Attendance Summary Page', shows: 'The Attendance Summary table', highlight: 'Highlight Agent, Scheduled Days, Available Days, and Attendance % columns — show colour-coded percentage values' },
 ]
