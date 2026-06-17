@@ -10,6 +10,7 @@ import AdminTeamAssignments from './pages/admin/AdminTeamAssignments'
 import AdminMetrics from './pages/admin/AdminMetrics'
 import AdminGoals from './pages/admin/AdminGoals'
 import AdminNotes from './pages/admin/AdminNotes'
+import Help from './pages/Help'
 
 export default function App() {
   return (
@@ -26,6 +27,7 @@ export default function App() {
           <Route path="/admin/metrics" element={<AdminMetrics />} />
           <Route path="/admin/goals" element={<AdminGoals />} />
           <Route path="/admin/notes" element={<AdminNotes />} />
+          <Route path="/help" element={<Help />} />
         </Routes>
       </Layout>
     </BrowserRouter>

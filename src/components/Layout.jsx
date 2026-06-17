@@ -32,6 +32,12 @@ const NAV = [
       { label: 'Notes', to: '/admin/notes' },
     ],
   },
+  {
+    group: 'Support',
+    items: [
+      { label: 'Help & Playbook', to: '/help' },
+    ],
+  },
 ]
 
 const PROD_HOST = 'kipusupportmetrics.vercel.app'
