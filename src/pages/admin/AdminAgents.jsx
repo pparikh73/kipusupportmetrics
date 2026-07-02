@@ -301,11 +301,11 @@ export default function AdminAgents() {
                   </select>
                 </div>
                 <div className="form-group" style={{ flex: 1, minWidth: 130, marginBottom: 0 }}>
-                  <label className="form-label">Effective From (YYYY-MM)</label>
+                  <label className="form-label">Effective From</label>
                   <input
                     className="form-input"
-                    placeholder="e.g. 2025-01"
-                    value={newAssignMonth}
+                    type="month"
+                    value={newAssignMonth.slice(0, 7)}
                     onChange={(e) => setNewAssignMonth(e.target.value)}
                   />
                 </div>
