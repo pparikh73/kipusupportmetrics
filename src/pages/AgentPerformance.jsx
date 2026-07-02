@@ -398,7 +398,7 @@ export default function AgentPerformance() {
   return (
     <div className="page">
       <div className="page-header">
-        <h1 className="page-title">Agent Performance</h1>
+        <h1 className="page-title">Chad's Performance</h1>
         <p className="page-subtitle">Monthly scorecard by agent</p>
       </div>
 
