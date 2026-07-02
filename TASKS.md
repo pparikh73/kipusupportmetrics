@@ -32,6 +32,7 @@
 | `[✅]` | APT-59 | Link agent name to admin profile (Profile → button) + Reporting Supervisor field added | Agent Perf | Angelique | 29-May |
 | `[✅]` | APT-65 | Remove the outbound call column | Agent Perf | Angelique | 29-May |
 | `[✅]` | APT-71 | Remove the outbound call column | Team Dashboard | Angelique | 29-May |
+| `[✅]` | APT-115 | Replace typed YYYY-MM date fields with full day-level date pickers — agent profile Team Assignments + Team Assignments page | Admin | — | 2-Jul |
 
 ### S — 1–3 hours each
 
