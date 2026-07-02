@@ -304,8 +304,8 @@ export default function AdminAgents() {
                   <label className="form-label">Effective From</label>
                   <input
                     className="form-input"
-                    type="month"
-                    value={newAssignMonth.slice(0, 7)}
+                    type="date"
+                    value={newAssignMonth}
                     onChange={(e) => setNewAssignMonth(e.target.value)}
                   />
                 </div>

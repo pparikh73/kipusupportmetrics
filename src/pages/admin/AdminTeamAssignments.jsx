@@ -2,6 +2,12 @@ import { useState, useEffect } from 'react'
 import { getAllTeamAssignments, upsertTeamAssignment, getAllAgents, getAllTeams } from '../../lib/api'
 import Modal from '../../components/Modal'
 
+// Older assignments were saved as YYYY-MM; pad to a full date so the picker can show them
+function toDateValue(v) {
+  if (!v) return ''
+  return v.length === 7 ? `${v}-01` : v.slice(0, 10)
+}
+
 export default function AdminTeamAssignments() {
   const [rows, setRows]       = useState([])
   const [agents, setAgents]   = useState([])
@@ -140,12 +146,12 @@ export default function AdminTeamAssignments() {
           </div>
           <div className="form-row">
             <div className="form-group">
-              <label className="form-label">Start Month</label>
-              <input className="form-input" type="month" value={(editing.effective_start_month ?? '').slice(0, 7)} onChange={(e) => setEditing({ ...editing, effective_start_month: e.target.value || null })} />
+              <label className="form-label">Start Date</label>
+              <input className="form-input" type="date" value={toDateValue(editing.effective_start_month)} onChange={(e) => setEditing({ ...editing, effective_start_month: e.target.value || null })} />
             </div>
             <div className="form-group">
-              <label className="form-label">End Month <span style={{ fontWeight: 400, color: '#6b7a8d' }}>(leave blank if current)</span></label>
-              <input className="form-input" type="month" value={(editing.effective_end_month ?? '').slice(0, 7)} onChange={(e) => setEditing({ ...editing, effective_end_month: e.target.value || null })} />
+              <label className="form-label">End Date <span style={{ fontWeight: 400, color: '#6b7a8d' }}>(leave blank if current)</span></label>
+              <input className="form-input" type="date" value={toDateValue(editing.effective_end_month)} onChange={(e) => setEditing({ ...editing, effective_end_month: e.target.value || null })} />
             </div>
           </div>
           <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, cursor: 'pointer', marginTop: 8 }}>
