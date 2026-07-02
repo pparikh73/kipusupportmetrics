@@ -38,7 +38,7 @@ export default function AttendanceSummary() {
   return (
     <div className="page">
       <div className="page-header">
-        <h1 className="page-title">Alx's Attendance</h1>
+        <h1 className="page-title">Attendance Summary</h1>
         <p className="page-subtitle">Monthly attendance by agent</p>
       </div>
 
