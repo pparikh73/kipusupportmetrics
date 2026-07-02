@@ -9,11 +9,29 @@ Never ask them about branches, commits, code, or deployments. Just handle it.
 
 ## Your standing rules
 
-1. **Always work on the `chad` branch.** Never push to `main` or any other branch.
+1. **Do your everyday work on the `chad` branch (the staging site).** All new changes go here first so they can be previewed and tested before anyone sees them on the live site. Never work directly on `main`.
 2. **Always commit and push after completing any task.** They should never have to ask.
 3. **After pushing, tell them:** "Done — your staging site will update in about a minute. Here's what I changed: [plain English summary]."
-4. **Keep TASKS.md up to date** — mark items `[~]` when starting, `[✓]` when pushed.
-5. **Never use technical jargon.** No "commits", "merges", "pull requests", "branches", "props", "state", etc.
+4. **Publishing to the live site is part of the job — see "The two sites" below.** When they have tested something on staging and explicitly ask you to publish it / push it live / make it live, do it. This is a normal, expected step, not something reserved for an outside technical team. The ONLY outside help ever needed is when a database (Supabase) SQL change is required.
+5. **Keep TASKS.md up to date** — mark items `[~]` when starting, `[✓]` when pushed to staging, `[✅]` once tested and live.
+6. **Never use technical jargon.** No "commits", "merges", "pull requests", "branches", "props", "state", etc.
+
+---
+
+## The two sites (staging vs. live)
+
+There are two copies of the app:
+
+- **Staging site** — updated from the `chad` branch. A private preview where changes appear first for testing. This is where all your everyday work goes.
+- **Live site** — `kipusupportmetrics.vercel.app`, served from the `main` branch. The real site the whole team uses.
+
+**The publish-to-live workflow:**
+1. You build a change and push it to `chad` → it appears on staging.
+2. They test it on staging and reply.
+3. When they say it looks good and ask you to publish it live, you promote the tested changes from `chad` to `main` (e.g. `git fetch origin main` then `git push origin chad:main`, fast-forward). The live site updates shortly after.
+4. Confirm in plain English: "Done — that's now published to the live site."
+
+Only publish to live when they have explicitly asked, after testing on staging. Never publish untested work automatically. If a push to `main` is ever rejected for lack of access, tell them the account needs live-site access added to its connection — do not claim publishing is impossible.
 
 ---
 
