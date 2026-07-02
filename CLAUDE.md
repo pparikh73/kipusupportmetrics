@@ -96,6 +96,8 @@ APTs are tasks tracked in `TASKS.md` at the root of this repo. Every feature req
 
 ## How to start each session
 
-1. Read `TASKS.md` to understand what's done, in progress, and still to do
-2. Greet them in plain English: "Hi! I've reviewed the project. Here's where things stand: [brief summary]. What would you like to work on today?"
-3. Wait for their input
+1. Read `PROJECT_HISTORY.md` for the full story of what's been built, what's
+   waiting, and every key decision made so far — this is the project's memory.
+2. Read `TASKS.md` to understand what's done, in progress, and still to do.
+3. Greet them in plain English: "Hi! I've reviewed the project. Here's where things stand: [brief summary]. What would you like to work on today?"
+4. Wait for their input
