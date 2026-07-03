@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
-import { getTeams, getAttendanceMonthly } from '../lib/api'
+import { getTeams, getAgents, getAllAgents, getAllTeamAssignments, getAttendanceRollup } from '../lib/api'
 import { currentMonth, recentMonths } from '../lib/format'
+import { downloadCsv } from '../lib/csv'
 
 export default function AttendanceSummary() {
   const months = recentMonths(18)
@@ -10,7 +11,46 @@ export default function AttendanceSummary() {
 
   const [rows, setRows]       = useState([])
   const [loading, setLoading] = useState(false)
+  const [exporting, setExporting] = useState(false)
   const [error, setError]     = useState('')
+
+  // CSV export — every month's summary for every agent, all teams
+  async function exportCsv() {
+    setExporting(true)
+    setError('')
+    try {
+      const [all, allAgents, assignments] = await Promise.all([
+        getAttendanceRollup(),
+        getAllAgents(),
+        getAllTeamAssignments(),
+      ])
+      const nameById = {}
+      allAgents.forEach((a) => { nameById[a.id] = a.agent_name })
+      const teamByAgent = {}
+      assignments.forEach((as) => {
+        if (as.active && !teamByAgent[as.agent_id]) teamByAgent[as.agent_id] = as.metrics_groups?.group_name ?? ''
+      })
+      const sorted = [...all].sort((a, b) =>
+        String(a.metric_month).localeCompare(String(b.metric_month)) ||
+        (nameById[a.agent_id] ?? '').localeCompare(nameById[b.agent_id] ?? ''))
+      downloadCsv(
+        `attendance-summary-${new Date().toISOString().slice(0, 10)}.csv`,
+        ['Agent', 'Team', 'Month', 'Scheduled Days', 'Available Days', 'Attendance %'],
+        sorted.map((r) => [
+          nameById[r.agent_id] ?? r.agent_id,
+          teamByAgent[r.agent_id] ?? '',
+          String(r.metric_month).slice(0, 7),
+          r.scheduled_days,
+          r.available_days,
+          r.attendance_pct == null ? '' : r.attendance_pct.toFixed(1),
+        ])
+      )
+    } catch (e) {
+      setError(e.message)
+    } finally {
+      setExporting(false)
+    }
+  }
 
   useEffect(() => {
     getTeams().then(setTeams).catch((e) => setError(e.message))
@@ -20,20 +60,29 @@ export default function AttendanceSummary() {
     setLoading(true)
     setError('')
     try {
-      const data = await getAttendanceMonthly({ month })
-      setRows(data)
+      const [rollup, allAgents, members] = await Promise.all([
+        getAttendanceRollup({ month }),
+        getAllAgents(),
+        teamId ? getAgents({ groupId: teamId, activeOnly: false }) : Promise.resolve(null),
+      ])
+      const nameById = {}
+      allAgents.forEach((a) => { nameById[a.id] = a.agent_name })
+      const memberIds = members ? new Set(members.map((m) => m.id)) : null
+      const list = rollup
+        .filter((r) => !memberIds || memberIds.has(r.agent_id))
+        .map((r) => ({ ...r, agent_name: nameById[r.agent_id] ?? String(r.agent_id) }))
+        .sort((a, b) => a.agent_name.localeCompare(b.agent_name))
+      setRows(list)
     } catch (e) {
       setError(e.message)
     } finally {
       setLoading(false)
     }
-  }, [month])
+  }, [month, teamId])
 
   useEffect(() => { loadData() }, [loadData])
 
-  const displayRows = teamId
-    ? rows.filter((r) => String(r.external_group_id) === teamId)
-    : rows
+  const displayRows = rows
 
   return (
     <div className="page">
@@ -57,6 +106,11 @@ export default function AttendanceSummary() {
             <option value="">All Teams</option>
             {teams.map((t) => <option key={t.id} value={t.id}>{t.group_name}</option>)}
           </select>
+        </div>
+        <div className="filter-group" style={{ justifyContent: 'flex-end' }}>
+          <button className="btn btn-secondary" onClick={exportCsv} disabled={exporting} style={{ marginTop: 18 }}>
+            {exporting ? 'Exporting…' : 'Export CSV'}
+          </button>
         </div>
       </div>
 

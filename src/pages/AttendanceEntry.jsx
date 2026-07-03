@@ -1,9 +1,10 @@
 import { useState, useEffect, useMemo, useCallback } from 'react'
 import {
-  getTeams, getAgents,
-  getAttendanceCodes, getAttendanceDaily,
+  getTeams, getAgents, getAllAgents,
+  getAttendanceCodes, getAttendanceFacts,
   upsertAttendance, deleteAttendance,
 } from '../lib/api'
+import { downloadCsv } from '../lib/csv'
 
 import Modal from '../components/Modal'
 
@@ -137,6 +138,7 @@ export default function AttendanceEntry() {
 
   const [loading, setLoading] = useState(false)
   const [saving, setSaving]   = useState(false)
+  const [exporting, setExporting] = useState(false)
   const [error, setError]     = useState('')
   const [saveMsg, setSaveMsg] = useState('')
 
@@ -168,8 +170,13 @@ export default function AttendanceEntry() {
   }, [codes])
 
   // Effective map: pending overrides saved; null pending = deleted
+  // Saved rows are raw fact rows — enrich them with their code's display fields
   const effectiveMap = useMemo(() => {
-    const m = { ...savedMap }
+    const m = {}
+    Object.entries(savedMap).forEach(([key, row]) => {
+      const code = codesById[row.attendance_code_id]
+      m[key] = code ? { ...code, ...row } : row
+    })
     Object.entries(pendingMap).forEach(([key, val]) => {
       if (val === null) { delete m[key] }
       else {
@@ -206,7 +213,7 @@ export default function AttendanceEntry() {
     setLoading(true)
     setError('')
     try {
-      const data = await getAttendanceDaily({ month, externalGroupId: groupId || undefined })
+      const data = await getAttendanceFacts({ month })
       const map = {}
       data.forEach((row) => { map[`${row.agent_id}:${row.attendance_date}`] = row })
       setSavedMap(map)
@@ -238,6 +245,33 @@ export default function AttendanceEntry() {
     })
     if (sched === 0) return null
     return (avail / sched * 100).toFixed(1)
+  }
+
+  // ── CSV export — every saved attendance record, all months and teams ────────
+
+  async function exportCsv() {
+    setExporting(true)
+    setError('')
+    try {
+      const [rows, allAgents] = await Promise.all([getAttendanceFacts(), getAllAgents()])
+      const nameById = {}
+      allAgents.forEach((a) => { nameById[a.id] = a.agent_name })
+      const sorted = [...rows].sort((a, b) =>
+        (nameById[a.agent_id] ?? '').localeCompare(nameById[b.agent_id] ?? '') ||
+        String(a.attendance_date).localeCompare(String(b.attendance_date)))
+      downloadCsv(
+        `attendance-daily-${new Date().toISOString().slice(0, 10)}.csv`,
+        ['Agent', 'Date', 'Code', 'Code Name'],
+        sorted.map((r) => {
+          const code = codesById[r.attendance_code_id]
+          return [nameById[r.agent_id] ?? r.agent_id, r.attendance_date, code?.code ?? '', code?.code_name ?? '']
+        })
+      )
+    } catch (e) {
+      setError(e.message)
+    } finally {
+      setExporting(false)
+    }
   }
 
   // ── Bulk actions ────────────────────────────────────────────────────────────
@@ -336,8 +370,25 @@ export default function AttendanceEntry() {
         ...toDelete.map(({ attendanceDate, agentId }) => deleteAttendance({ attendanceDate, agentId })),
         ...(toUpsert.length ? [upsertAttendance(toUpsert)] : []),
       ])
-      setSaveMsg(`Saved ${pendingCount} change${pendingCount !== 1 ? 's' : ''}.`)
-      setTimeout(() => setSaveMsg(''), 4000)
+      // Verify every upserted entry actually landed in the database
+      let verifyError = ''
+      if (toUpsert.length) {
+        const fresh = await getAttendanceFacts({ month })
+        const savedKeys = new Set(fresh.map((r) => `${r.agent_id}:${r.attendance_date}`))
+        const missing = toUpsert.filter((r) => !savedKeys.has(`${r.agent_id}:${r.attendance_date}`))
+        if (missing.length) {
+          const detail = missing
+            .map((r) => `${agents.find((a) => a.id === r.agent_id)?.agent_name ?? `agent #${r.agent_id}`} on ${r.attendance_date}`)
+            .join('; ')
+          verifyError = `These entries did NOT save: ${detail}. Please report this exact message.`
+        }
+      }
+      if (verifyError) {
+        setError(verifyError)
+      } else {
+        setSaveMsg(`Saved ${pendingCount} change${pendingCount !== 1 ? 's' : ''}.`)
+        setTimeout(() => setSaveMsg(''), 4000)
+      }
       await loadAttendance()
     } catch (e) {
       setError(e.message)
@@ -464,6 +515,9 @@ export default function AttendanceEntry() {
               {holidays.length}
             </span>
           )}
+        </button>
+        <button className="btn btn-secondary" onClick={exportCsv} disabled={exporting}>
+          {exporting ? 'Exporting…' : 'Export CSV'}
         </button>
       </div>
 

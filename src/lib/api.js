@@ -230,14 +230,10 @@ async function overlayAttendance(rows, { month, year, agentId, agentIds, groupId
     const attDef = (defs ?? []).find((d) => /attendance/i.test(`${d.metric_key} ${d.metric_name}`))
     if (!attDef) return rows
 
-    let query = supabase.from('metrics_vw_attendance_monthly').select('*')
-    if (month) query = query.eq('metric_month', toDateParam(month))
-    if (year)  query = query.gte('metric_month', `${year}-01-01`).lte('metric_month', `${year}-12-31`)
-    const { data: att, error: ae } = await query
-    if (ae) throw ae
+    const att = await getAttendanceRollup({ month, year })
 
     const live = new Map()
-    for (const a of att ?? []) {
+    for (const a of att) {
       if (a.attendance_pct == null) continue
       live.set(`${a.agent_id}:${String(a.metric_month).slice(0, 7)}`, a)
     }
@@ -441,6 +437,65 @@ export async function getAttendanceDaily({ month, agentId, externalGroupId } = {
   const { data, error } = await query
   if (error) throw error
   return data
+}
+
+// Day-level rows straight from the fact table. The daily view joins on team
+// assignments and can drop agents without an active one, so reads that must
+// round-trip with saves (Attendance Entry grid + export) use this instead.
+export async function getAttendanceFacts({ month } = {}) {
+  let query = supabase.from('metrics_fact_attendance_daily').select('*')
+  if (month) {
+    const first = toDateParam(month)
+    const [y, m] = first.split('-').map(Number)
+    const lastDay = new Date(y, m, 0).getDate()
+    query = query
+      .gte('attendance_date', first)
+      .lte('attendance_date', `${first.slice(0, 8)}${String(lastDay).padStart(2, '0')}`)
+  }
+  const { data, error } = await query
+  if (error) throw error
+  return data
+}
+
+// Monthly attendance rollup computed from the fact table + codes, so results
+// never depend on team-assignment date windows (unlike the monthly view).
+export async function getAttendanceRollup({ month, year } = {}) {
+  let query = supabase.from('metrics_fact_attendance_daily').select('*')
+  if (month) {
+    const first = toDateParam(month)
+    const [y, m] = first.split('-').map(Number)
+    const lastDay = new Date(y, m, 0).getDate()
+    query = query
+      .gte('attendance_date', first)
+      .lte('attendance_date', `${first.slice(0, 8)}${String(lastDay).padStart(2, '0')}`)
+  }
+  if (year) {
+    query = query
+      .gte('attendance_date', `${year}-01-01`)
+      .lte('attendance_date', `${year}-12-31`)
+  }
+  const [factsRes, codesRes] = await Promise.all([
+    query,
+    supabase.from('metrics_cfg_attendance_codes').select('*'),
+  ])
+  if (factsRes.error) throw factsRes.error
+  if (codesRes.error) throw codesRes.error
+  const codeById = {}
+  codesRes.data.forEach((c) => { codeById[c.id] = c })
+  const byKey = {}
+  factsRes.data.forEach((r) => {
+    const code = codeById[r.attendance_code_id]
+    if (!code) return
+    const monthKey = String(r.attendance_date).slice(0, 7)
+    const k = `${r.agent_id}:${monthKey}`
+    const b = byKey[k] ??= { agent_id: r.agent_id, metric_month: `${monthKey}-01`, scheduled_days: 0, available_days: 0 }
+    if (code.counts_as_scheduled) b.scheduled_days++
+    if (code.counts_as_available) b.available_days++
+  })
+  return Object.values(byKey).map((b) => ({
+    ...b,
+    attendance_pct: b.scheduled_days ? (b.available_days / b.scheduled_days) * 100 : null,
+  }))
 }
 
 export async function upsertAttendance(rows) {
