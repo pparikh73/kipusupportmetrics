@@ -231,15 +231,15 @@ async function overlayAttendance(rows, { month, year, agentId, agentIds, groupId
     if (!attDef) return rows
 
     let query = supabase.from('metrics_vw_attendance_monthly').select('*')
-    if (month) query = query.eq('attendance_month', toDateParam(month))
-    if (year)  query = query.gte('attendance_month', `${year}-01-01`).lte('attendance_month', `${year}-12-31`)
+    if (month) query = query.eq('metric_month', toDateParam(month))
+    if (year)  query = query.gte('metric_month', `${year}-01-01`).lte('metric_month', `${year}-12-31`)
     const { data: att, error: ae } = await query
     if (ae) throw ae
 
     const live = new Map()
     for (const a of att ?? []) {
       if (a.attendance_pct == null) continue
-      live.set(`${a.agent_id}:${String(a.attendance_month).slice(0, 7)}`, a)
+      live.set(`${a.agent_id}:${String(a.metric_month).slice(0, 7)}`, a)
     }
     if (!live.size) return rows
 
