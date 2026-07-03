@@ -64,7 +64,7 @@
 | `[✅]` | APT-109 | Add Employment End Date to agent profile. Auto-sets agent inactive when date passes (checked on page load + on save). SQL: `ALTER TABLE metrics_agents ADD COLUMN IF NOT EXISTS employment_end_date date;` | Admin | Chad | — |
 | `[✓]` | APT-110 | Attendance Entry — fix bulk holiday application and apply-to-selected agents (umbrella for APT-84/APT-85); walkthrough video recorded 12-Jun | Attendance | Chad | 15-Jun |
 | `[✓]` | APT-114 | Fix error when saving notes ("Could not find the 'created_by' column") — graceful fallback deployed; full fix requires Supabase admin to run: `ALTER TABLE metrics_agent_monthly_notes ADD COLUMN IF NOT EXISTS created_by text;` | Notes | Chad | 15-Jun |
-| `[✅]` | APT-116 | Attendance entries not reflecting on Agent Performance / Team Dashboard — Attendance % metric now reads live from the daily attendance records (same source as Attendance Summary); tested on staging and published to live 3-Jul | Agent Perf / Team | — | 3-Jul |
+| `[✅]` | APT-120 | Attendance entries not reflecting on Agent Performance / Team Dashboard — Attendance % metric now reads live from the daily attendance records (same source as Attendance Summary); tested on staging and published to live 3-Jul | Agent Perf / Team | — | 3-Jul |
 
 ### M — 3–8 hours each
 
@@ -148,7 +148,7 @@ These tasks are about confirming data accuracy and signing off on the tool with 
 | APT-84 + APT-85 + APT-110 | Attendance Entry → (1) Check 2+ agent rows → click any cell in the grid → the date column should become selected (not open a popup) → choose a code → "Apply to Selected Cells" should enable and apply. (2) After applying, select cells again and click "Clear Selected Cells" — entries should be removed. (3) Click "US Holidays This Month" → "Apply to all N agents" and "Apply to selected" buttons should apply code H correctly. |
 | APT-91 + APT-114 | Agent Perf → supervisor dropdown above Save Note should work; Hide/Show Notes toggle should work; note should save without error. Admin > Notes → Created By shows supervisor name. Note: the `created_by` DB column still needs to be added by Supabase admin — until then notes save but without the supervisor name. |
 | APT-109 | Admin > Agents → Edit any agent → **Employment End Date** field should appear. Setting a past date should immediately mark agent inactive. Setting a future date should auto-deactivate when that date arrives. |
-| APT-116 | Agent Performance → pick Brett Jones, June → the **Attendance %** row should now match the Attendance Summary page for June (including the June 26 entry). Team Dashboard → same team + June → Brett's attendance column should match too. Quarterly/YTD/Trend tabs also pick up live attendance. |
+| APT-120 | Agent Performance → pick Brett Jones, June → the **Attendance %** row should now match the Attendance Summary page for June (including the June 26 entry). Team Dashboard → same team + June → Brett's attendance column should match too. Quarterly/YTD/Trend tabs also pick up live attendance. |
 
 ---
 
