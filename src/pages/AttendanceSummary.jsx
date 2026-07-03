@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { getTeams, getAttendanceMonthly } from '../lib/api'
+import { getTeams, getAgents, getAllAgents, getAllTeamAssignments, getAttendanceRollup } from '../lib/api'
 import { currentMonth, recentMonths } from '../lib/format'
 import { downloadCsv } from '../lib/csv'
 
@@ -19,22 +19,30 @@ export default function AttendanceSummary() {
     setExporting(true)
     setError('')
     try {
-      const all = await getAttendanceMonthly()
-      const teamById = {}
-      teams.forEach((t) => { teamById[t.id] = t.group_name })
+      const [all, allAgents, assignments] = await Promise.all([
+        getAttendanceRollup(),
+        getAllAgents(),
+        getAllTeamAssignments(),
+      ])
+      const nameById = {}
+      allAgents.forEach((a) => { nameById[a.id] = a.agent_name })
+      const teamByAgent = {}
+      assignments.forEach((as) => {
+        if (as.active && !teamByAgent[as.agent_id]) teamByAgent[as.agent_id] = as.metrics_groups?.group_name ?? ''
+      })
       const sorted = [...all].sort((a, b) =>
         String(a.metric_month).localeCompare(String(b.metric_month)) ||
-        (a.agent_name ?? '').localeCompare(b.agent_name ?? ''))
+        (nameById[a.agent_id] ?? '').localeCompare(nameById[b.agent_id] ?? ''))
       downloadCsv(
         `attendance-summary-${new Date().toISOString().slice(0, 10)}.csv`,
         ['Agent', 'Team', 'Month', 'Scheduled Days', 'Available Days', 'Attendance %'],
         sorted.map((r) => [
-          r.agent_name,
-          teamById[r.external_group_id] ?? '',
+          nameById[r.agent_id] ?? r.agent_id,
+          teamByAgent[r.agent_id] ?? '',
           String(r.metric_month).slice(0, 7),
           r.scheduled_days,
           r.available_days,
-          r.attendance_pct,
+          r.attendance_pct == null ? '' : r.attendance_pct.toFixed(1),
         ])
       )
     } catch (e) {
@@ -52,20 +60,29 @@ export default function AttendanceSummary() {
     setLoading(true)
     setError('')
     try {
-      const data = await getAttendanceMonthly({ month })
-      setRows(data)
+      const [rollup, allAgents, members] = await Promise.all([
+        getAttendanceRollup({ month }),
+        getAllAgents(),
+        teamId ? getAgents({ groupId: teamId, activeOnly: false }) : Promise.resolve(null),
+      ])
+      const nameById = {}
+      allAgents.forEach((a) => { nameById[a.id] = a.agent_name })
+      const memberIds = members ? new Set(members.map((m) => m.id)) : null
+      const list = rollup
+        .filter((r) => !memberIds || memberIds.has(r.agent_id))
+        .map((r) => ({ ...r, agent_name: nameById[r.agent_id] ?? String(r.agent_id) }))
+        .sort((a, b) => a.agent_name.localeCompare(b.agent_name))
+      setRows(list)
     } catch (e) {
       setError(e.message)
     } finally {
       setLoading(false)
     }
-  }, [month])
+  }, [month, teamId])
 
   useEffect(() => { loadData() }, [loadData])
 
-  const displayRows = teamId
-    ? rows.filter((r) => String(r.external_group_id) === teamId)
-    : rows
+  const displayRows = rows
 
   return (
     <div className="page">

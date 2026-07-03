@@ -370,8 +370,25 @@ export default function AttendanceEntry() {
         ...toDelete.map(({ attendanceDate, agentId }) => deleteAttendance({ attendanceDate, agentId })),
         ...(toUpsert.length ? [upsertAttendance(toUpsert)] : []),
       ])
-      setSaveMsg(`Saved ${pendingCount} change${pendingCount !== 1 ? 's' : ''}.`)
-      setTimeout(() => setSaveMsg(''), 4000)
+      // Verify every upserted entry actually landed in the database
+      let verifyError = ''
+      if (toUpsert.length) {
+        const fresh = await getAttendanceFacts({ month })
+        const savedKeys = new Set(fresh.map((r) => `${r.agent_id}:${r.attendance_date}`))
+        const missing = toUpsert.filter((r) => !savedKeys.has(`${r.agent_id}:${r.attendance_date}`))
+        if (missing.length) {
+          const detail = missing
+            .map((r) => `${agents.find((a) => a.id === r.agent_id)?.agent_name ?? `agent #${r.agent_id}`} on ${r.attendance_date}`)
+            .join('; ')
+          verifyError = `These entries did NOT save: ${detail}. Please report this exact message.`
+        }
+      }
+      if (verifyError) {
+        setError(verifyError)
+      } else {
+        setSaveMsg(`Saved ${pendingCount} change${pendingCount !== 1 ? 's' : ''}.`)
+        setTimeout(() => setSaveMsg(''), 4000)
+      }
       await loadAttendance()
     } catch (e) {
       setError(e.message)
