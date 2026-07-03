@@ -66,6 +66,7 @@
 | `[✓]` | APT-114 | Fix error when saving notes ("Could not find the 'created_by' column") — graceful fallback deployed; full fix requires Supabase admin to run: `ALTER TABLE metrics_agent_monthly_notes ADD COLUMN IF NOT EXISTS created_by text;` | Notes | Chad | 15-Jun |
 | `[✅]` | APT-120 | Attendance entries not reflecting on Agent Performance / Team Dashboard — Attendance % metric now reads live from the daily attendance records (same source as Attendance Summary); tested on staging and published to live 3-Jul | Agent Perf / Team | — | 3-Jul |
 | `[✓]` | APT-121 | Export CSV buttons on Attendance Entry (all day-by-day records: Agent, Date, Code) and Attendance Summary (all months: Agent, Team, Month, Scheduled, Available, %) — exports include ALL attendance data regardless of on-screen filters | Attendance | — | 3-Jul |
+| `[✓]` | APT-122 | Attendance Entry not saving for Jovana and Mindy — entries actually saved but the grid re-loaded through a view that drops agents without an active team assignment; grid and CSV export now read straight from the saved records | Attendance | — | 3-Jul |
 
 ### M — 3–8 hours each
 
@@ -151,6 +152,7 @@ These tasks are about confirming data accuracy and signing off on the tool with 
 | APT-109 | Admin > Agents → Edit any agent → **Employment End Date** field should appear. Setting a past date should immediately mark agent inactive. Setting a future date should auto-deactivate when that date arrives. |
 | APT-120 | Agent Performance → pick Brett Jones, June → the **Attendance %** row should now match the Attendance Summary page for June (including the June 26 entry). Team Dashboard → same team + June → Brett's attendance column should match too. Quarterly/YTD/Trend tabs also pick up live attendance. |
 | APT-121 | Attendance Entry → **Export CSV** button (top-right of the action row) should download a file with every saved attendance record: Agent, Date, Code, Code Name. Attendance Summary → **Export CSV** button (right of the filter bar) should download Agent, Team, Month, Scheduled Days, Available Days, Attendance % for all months. Both exports include everything, not just the month/team on screen. Files open in Excel. |
+| APT-122 | Attendance Entry → enter attendance for **Jovana** and **Mindy**, click Save All Changes, then refresh the page → their entries should still be there. Also check whether those two show up on the **Attendance Summary** page — if they don't, tell me: that part lives in the database and needs the Supabase admin to adjust (likely a missing team assignment). |
 
 ---
 

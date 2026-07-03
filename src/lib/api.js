@@ -443,6 +443,24 @@ export async function getAttendanceDaily({ month, agentId, externalGroupId } = {
   return data
 }
 
+// Day-level rows straight from the fact table. The daily view joins on team
+// assignments and can drop agents without an active one, so reads that must
+// round-trip with saves (Attendance Entry grid + export) use this instead.
+export async function getAttendanceFacts({ month } = {}) {
+  let query = supabase.from('metrics_fact_attendance_daily').select('*')
+  if (month) {
+    const first = toDateParam(month)
+    const [y, m] = first.split('-').map(Number)
+    const lastDay = new Date(y, m, 0).getDate()
+    query = query
+      .gte('attendance_date', first)
+      .lte('attendance_date', `${first.slice(0, 8)}${String(lastDay).padStart(2, '0')}`)
+  }
+  const { data, error } = await query
+  if (error) throw error
+  return data
+}
+
 export async function upsertAttendance(rows) {
   const { data, error } = await supabase
     .from('metrics_fact_attendance_daily')

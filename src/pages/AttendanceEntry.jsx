@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react'
 import {
   getTeams, getAgents, getAllAgents,
-  getAttendanceCodes, getAttendanceDaily,
+  getAttendanceCodes, getAttendanceFacts,
   upsertAttendance, deleteAttendance,
 } from '../lib/api'
 import { downloadCsv } from '../lib/csv'
@@ -170,8 +170,13 @@ export default function AttendanceEntry() {
   }, [codes])
 
   // Effective map: pending overrides saved; null pending = deleted
+  // Saved rows are raw fact rows — enrich them with their code's display fields
   const effectiveMap = useMemo(() => {
-    const m = { ...savedMap }
+    const m = {}
+    Object.entries(savedMap).forEach(([key, row]) => {
+      const code = codesById[row.attendance_code_id]
+      m[key] = code ? { ...code, ...row } : row
+    })
     Object.entries(pendingMap).forEach(([key, val]) => {
       if (val === null) { delete m[key] }
       else {
@@ -208,7 +213,7 @@ export default function AttendanceEntry() {
     setLoading(true)
     setError('')
     try {
-      const data = await getAttendanceDaily({ month, externalGroupId: groupId || undefined })
+      const data = await getAttendanceFacts({ month })
       const map = {}
       data.forEach((row) => { map[`${row.agent_id}:${row.attendance_date}`] = row })
       setSavedMap(map)
@@ -248,7 +253,7 @@ export default function AttendanceEntry() {
     setExporting(true)
     setError('')
     try {
-      const [rows, allAgents] = await Promise.all([getAttendanceDaily(), getAllAgents()])
+      const [rows, allAgents] = await Promise.all([getAttendanceFacts(), getAllAgents()])
       const nameById = {}
       allAgents.forEach((a) => { nameById[a.id] = a.agent_name })
       const sorted = [...rows].sort((a, b) =>
@@ -257,7 +262,10 @@ export default function AttendanceEntry() {
       downloadCsv(
         `attendance-daily-${new Date().toISOString().slice(0, 10)}.csv`,
         ['Agent', 'Date', 'Code', 'Code Name'],
-        sorted.map((r) => [nameById[r.agent_id] ?? r.agent_id, r.attendance_date, r.code ?? '', r.code_name ?? ''])
+        sorted.map((r) => {
+          const code = codesById[r.attendance_code_id]
+          return [nameById[r.agent_id] ?? r.agent_id, r.attendance_date, code?.code ?? '', code?.code_name ?? '']
+        })
       )
     } catch (e) {
       setError(e.message)
