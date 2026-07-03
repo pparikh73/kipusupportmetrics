@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { getTeams, getAttendanceMonthly } from '../lib/api'
 import { currentMonth, recentMonths } from '../lib/format'
+import { downloadCsv } from '../lib/csv'
 
 export default function AttendanceSummary() {
   const months = recentMonths(18)
@@ -10,7 +11,38 @@ export default function AttendanceSummary() {
 
   const [rows, setRows]       = useState([])
   const [loading, setLoading] = useState(false)
+  const [exporting, setExporting] = useState(false)
   const [error, setError]     = useState('')
+
+  // CSV export — every month's summary for every agent, all teams
+  async function exportCsv() {
+    setExporting(true)
+    setError('')
+    try {
+      const all = await getAttendanceMonthly()
+      const teamById = {}
+      teams.forEach((t) => { teamById[t.id] = t.group_name })
+      const sorted = [...all].sort((a, b) =>
+        String(a.metric_month).localeCompare(String(b.metric_month)) ||
+        (a.agent_name ?? '').localeCompare(b.agent_name ?? ''))
+      downloadCsv(
+        `attendance-summary-${new Date().toISOString().slice(0, 10)}.csv`,
+        ['Agent', 'Team', 'Month', 'Scheduled Days', 'Available Days', 'Attendance %'],
+        sorted.map((r) => [
+          r.agent_name,
+          teamById[r.external_group_id] ?? '',
+          String(r.metric_month).slice(0, 7),
+          r.scheduled_days,
+          r.available_days,
+          r.attendance_pct,
+        ])
+      )
+    } catch (e) {
+      setError(e.message)
+    } finally {
+      setExporting(false)
+    }
+  }
 
   useEffect(() => {
     getTeams().then(setTeams).catch((e) => setError(e.message))
@@ -57,6 +89,11 @@ export default function AttendanceSummary() {
             <option value="">All Teams</option>
             {teams.map((t) => <option key={t.id} value={t.id}>{t.group_name}</option>)}
           </select>
+        </div>
+        <div className="filter-group" style={{ justifyContent: 'flex-end' }}>
+          <button className="btn btn-secondary" onClick={exportCsv} disabled={exporting} style={{ marginTop: 18 }}>
+            {exporting ? 'Exporting…' : 'Export CSV'}
+          </button>
         </div>
       </div>
 
