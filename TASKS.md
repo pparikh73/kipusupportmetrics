@@ -64,7 +64,7 @@
 | `[✅]` | APT-109 | Add Employment End Date to agent profile. Auto-sets agent inactive when date passes (checked on page load + on save). SQL: `ALTER TABLE metrics_agents ADD COLUMN IF NOT EXISTS employment_end_date date;` | Admin | Chad | — |
 | `[✓]` | APT-110 | Attendance Entry — fix bulk holiday application and apply-to-selected agents (umbrella for APT-84/APT-85); walkthrough video recorded 12-Jun | Attendance | Chad | 15-Jun |
 | `[✓]` | APT-114 | Fix error when saving notes ("Could not find the 'created_by' column") — graceful fallback deployed; full fix requires Supabase admin to run: `ALTER TABLE metrics_agent_monthly_notes ADD COLUMN IF NOT EXISTS created_by text;` | Notes | Chad | 15-Jun |
-| `[✓]` | APT-116 | Attendance entries not reflecting on Agent Performance / Team Dashboard — Attendance % metric now reads live from the daily attendance records (same source as Attendance Summary) | Agent Perf / Team | — | 3-Jul |
+| `[✅]` | APT-116 | Attendance entries not reflecting on Agent Performance / Team Dashboard — Attendance % metric now reads live from the daily attendance records (same source as Attendance Summary); tested on staging and published to live 3-Jul | Agent Perf / Team | — | 3-Jul |
 
 ### M — 3–8 hours each
 
