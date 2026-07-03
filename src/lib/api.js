@@ -209,6 +209,80 @@ export async function deleteGroupGoal(id) {
 
 // ── Dashboard views ───────────────────────────────────────────────────────────
 
+// The scorecard view does not reflect day-level records saved from Attendance
+// Entry, so the attendance metric is patched below with live numbers from
+// metrics_vw_attendance_monthly — the same source the Attendance Summary uses.
+
+function attendanceStatus(actual, row) {
+  if (row.goal_value == null) return 'no_target'
+  const tol = row.tolerance_value ?? 0
+  if (row.direction_good === 'at_or_below') return actual <= row.goal_value + tol ? 'on_track' : 'off_track'
+  return actual >= row.goal_value - tol ? 'on_track' : 'off_track'
+}
+
+async function overlayAttendance(rows, { month, year, agentId, agentIds, groupId } = {}) {
+  try {
+    const { data: defs, error: de } = await supabase
+      .from('metrics_definitions')
+      .select('*')
+      .eq('active', true)
+    if (de) throw de
+    const attDef = (defs ?? []).find((d) => /attendance/i.test(`${d.metric_key} ${d.metric_name}`))
+    if (!attDef) return rows
+
+    let query = supabase.from('metrics_vw_attendance_monthly').select('*')
+    if (month) query = query.eq('attendance_month', toDateParam(month))
+    if (year)  query = query.gte('attendance_month', `${year}-01-01`).lte('attendance_month', `${year}-12-31`)
+    const { data: att, error: ae } = await query
+    if (ae) throw ae
+
+    const live = new Map()
+    for (const a of att ?? []) {
+      if (a.attendance_pct == null) continue
+      live.set(`${a.agent_id}:${String(a.attendance_month).slice(0, 7)}`, a)
+    }
+    if (!live.size) return rows
+
+    const patched = rows.map((r) => {
+      if (r.metric_key !== attDef.metric_key) return r
+      const key = `${r.agent_id}:${String(r.metric_month).slice(0, 7)}`
+      const a = live.get(key)
+      if (!a) return r
+      live.delete(key)
+      const actual = Number(a.attendance_pct)
+      return { ...r, actual_value: actual, metric_status: attendanceStatus(actual, r) }
+    })
+
+    // Attendance saved for agent/months the scorecard has no row for yet
+    const wanted = agentId ? new Set([Number(agentId)])
+      : agentIds?.length ? new Set(agentIds.map(Number))
+      : null
+    for (const [key, a] of live) {
+      if (wanted && !wanted.has(Number(a.agent_id))) continue
+      if (!wanted && groupId && String(a.external_group_id) !== String(groupId)) continue
+      patched.push({
+        agent_id: a.agent_id,
+        agent_name: a.agent_name ?? null,
+        group_id: a.external_group_id ?? null,
+        metric_month: `${key.split(':')[1]}-01`,
+        metric_key: attDef.metric_key,
+        metric_name: attDef.metric_name,
+        unit_type: attDef.unit_type,
+        direction_good: attDef.direction_good,
+        counts_toward_score: attDef.counts_toward_score,
+        display_order: attDef.display_order,
+        actual_value: Number(a.attendance_pct),
+        goal_value: null,
+        tolerance_value: null,
+        metric_status: 'no_target',
+      })
+    }
+    return patched
+  } catch {
+    return rows // the overlay must never break the scorecard pages
+  }
+}
+
 // One row per agent/month/metric — primary scorecard source
 export async function getScorecard({ agentId, month, groupId, agentIds } = {}) {
   let query = supabase.from('metrics_vw_ab_scorecard').select('*')
@@ -218,7 +292,7 @@ export async function getScorecard({ agentId, month, groupId, agentIds } = {}) {
   if (agentIds?.length) query = query.in('agent_id', agentIds)
   const { data, error } = await query
   if (error) throw error
-  return data
+  return overlayAttendance(data, { month, agentId, agentIds, groupId })
 }
 
 // Year-range scorecard for rollups
@@ -231,7 +305,7 @@ export async function getScorecardYear({ agentId, groupId, year, agentIds } = {}
   if (agentIds?.length) query = query.in('agent_id', agentIds)
   const { data, error } = await query
   if (error) throw error
-  return data
+  return overlayAttendance(data, { year, agentId, agentIds, groupId })
 }
 
 // One row per agent/month — summary ratings
