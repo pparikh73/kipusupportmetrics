@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { getTeams, getAgents, getAllAgents, getAllTeamAssignments, getAttendanceRollup } from '../lib/api'
 import { currentMonth, recentMonths } from '../lib/format'
-import { downloadCsv } from '../lib/csv'
+import { downloadXlsx } from '../lib/csv'
 
 export default function AttendanceSummary() {
   const months = recentMonths(18)
@@ -33,8 +33,8 @@ export default function AttendanceSummary() {
       const sorted = [...all].sort((a, b) =>
         String(a.metric_month).localeCompare(String(b.metric_month)) ||
         (nameById[a.agent_id] ?? '').localeCompare(nameById[b.agent_id] ?? ''))
-      downloadCsv(
-        `attendance-summary-${new Date().toISOString().slice(0, 10)}.csv`,
+      await downloadXlsx(
+        `attendance-summary-${new Date().toISOString().slice(0, 10)}.xlsx`,
         ['Agent', 'Team', 'Month', 'Scheduled Days', 'Available Days', 'Attendance %'],
         sorted.map((r) => [
           nameById[r.agent_id] ?? r.agent_id,
@@ -43,7 +43,8 @@ export default function AttendanceSummary() {
           r.scheduled_days,
           r.available_days,
           r.attendance_pct == null ? '' : r.attendance_pct.toFixed(1),
-        ])
+        ]),
+        'Attendance Summary'
       )
     } catch (e) {
       setError(e.message)
@@ -109,7 +110,7 @@ export default function AttendanceSummary() {
         </div>
         <div className="filter-group" style={{ justifyContent: 'flex-end' }}>
           <button className="btn btn-secondary" onClick={exportCsv} disabled={exporting} style={{ marginTop: 18 }}>
-            {exporting ? 'Exporting…' : 'Export CSV'}
+            {exporting ? 'Exporting…' : 'Export Excel'}
           </button>
         </div>
       </div>

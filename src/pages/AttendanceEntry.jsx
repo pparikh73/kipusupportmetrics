@@ -4,7 +4,7 @@ import {
   getAttendanceCodes, getAttendanceFacts,
   upsertAttendance, deleteAttendance,
 } from '../lib/api'
-import { downloadCsv } from '../lib/csv'
+import { downloadXlsx, readTableFile, normalizeDate } from '../lib/csv'
 
 import Modal from '../components/Modal'
 
@@ -243,7 +243,7 @@ export default function AttendanceEntry() {
     } finally {
       setLoading(false)
     }
-  }, [month, groupId])
+  }, [month])
 
   useEffect(() => { loadAttendance() }, [loadAttendance])
 
@@ -267,7 +267,7 @@ export default function AttendanceEntry() {
     return (avail / sched * 100).toFixed(1)
   }
 
-  // ── CSV export — every saved attendance record, all months and teams ────────
+  // ── Excel export — every saved attendance record, all months and teams ──────
 
   async function exportCsv() {
     setExporting(true)
@@ -279,13 +279,14 @@ export default function AttendanceEntry() {
       const sorted = [...rows].sort((a, b) =>
         (nameById[a.agent_id] ?? '').localeCompare(nameById[b.agent_id] ?? '') ||
         String(a.attendance_date).localeCompare(String(b.attendance_date)))
-      downloadCsv(
-        `attendance-daily-${new Date().toISOString().slice(0, 10)}.csv`,
+      await downloadXlsx(
+        `attendance-daily-${new Date().toISOString().slice(0, 10)}.xlsx`,
         ['Agent', 'Date', 'Code', 'Code Name'],
         sorted.map((r) => {
           const code = codesById[r.attendance_code_id]
           return [nameById[r.agent_id] ?? r.agent_id, r.attendance_date, code?.code ?? '', code?.code_name ?? '']
-        })
+        }),
+        'Attendance'
       )
     } catch (e) {
       setError(e.message)
@@ -294,17 +295,16 @@ export default function AttendanceEntry() {
     }
   }
 
-  // ── CSV import — bulk-load attendance from a file (Agent, Date, Code) ───────
+  // ── Import — bulk-load attendance from a CSV or Excel file (Agent, Date, Code)
 
   async function importCsvFile(file) {
     setImporting(true)
     setError('')
     try {
-      const text = await file.text()
-      const lines = text.split(/\r?\n/).filter((l) => l.trim())
-      const header = (lines[0] ?? '').toLowerCase()
+      const lines = await readTableFile(file)
+      const header = (lines[0] ?? []).join(',').toLowerCase()
       if (!header.includes('agent') || !header.includes('date') || !header.includes('code')) {
-        throw new Error('The file must be a CSV with columns: Agent, Date, Code')
+        throw new Error('The file must have columns: Agent, Date, Code (CSV or Excel)')
       }
       const allAgents = await getAllAgents()
       const idByName = {}
@@ -315,15 +315,15 @@ export default function AttendanceEntry() {
       const rows = []
       const unknownAgents = new Set()
       const unknownCodes = new Set()
-      for (const line of lines.slice(1)) {
-        const parts = line.split(',').map((s) => s.replace(/^"|"$/g, '').trim())
+      for (const parts of lines.slice(1)) {
         if (parts.length < 3) continue
-        const [name, date, codeStr] = parts
-        if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) continue
+        const [name, rawDate, codeStr] = parts
+        const date = normalizeDate(rawDate)
+        if (!name || !date) continue
         const agentId = idByName[name.toLowerCase()]
         if (!agentId) { unknownAgents.add(name); continue }
-        const codeId = codeIdByCode[codeStr.toUpperCase()]
-        if (!codeId) { unknownCodes.add(codeStr); continue }
+        const codeId = codeIdByCode[String(codeStr).toUpperCase()]
+        if (!codeId) { if (codeStr) unknownCodes.add(codeStr); continue }
         rows.push({ attendance_date: date, agent_id: agentId, attendance_code_id: codeId, source: 'import', notes: null })
       }
       if (!rows.length) throw new Error('No importable rows found in the file.')
@@ -597,17 +597,17 @@ export default function AttendanceEntry() {
           )}
         </button>
         <button className="btn btn-secondary" onClick={exportCsv} disabled={exporting}>
-          {exporting ? 'Exporting…' : 'Export CSV'}
+          {exporting ? 'Exporting…' : 'Export Excel'}
         </button>
         <input
           ref={importFileRef}
           type="file"
-          accept=".csv"
+          accept=".csv,.xlsx,.xls"
           style={{ display: 'none' }}
           onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; if (f) importCsvFile(f) }}
         />
         <button className="btn btn-secondary" onClick={() => importFileRef.current?.click()} disabled={importing || saving}>
-          {importing ? 'Importing…' : 'Import CSV'}
+          {importing ? 'Importing…' : 'Import File'}
         </button>
       </div>
 
