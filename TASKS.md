@@ -68,6 +68,7 @@
 | `[✅]` | APT-121 | Export CSV buttons on Attendance Entry (all day-by-day records: Agent, Date, Code) and Attendance Summary (all months: Agent, Team, Month, Scheduled, Available, %) — exports include ALL attendance data regardless of on-screen filters | Attendance | — | 3-Jul |
 | `[✅]` | APT-122 | Attendance Entry not saving for Jovana and Mindy — entries actually saved but the grid re-loaded through a view that drops agents without an active team assignment; grid and CSV export now read straight from the saved records | Attendance | — | 3-Jul |
 | `[✅]` | APT-123 | Follow-up to APT-122 (June 26 still missing for Jovana/Mindy): Attendance Summary, dashboards' Attendance %, and both CSV exports now all compute from the raw saved records — no dependence on team-assignment date windows anywhere. Save now also verifies and shows a plain-English error naming any entry that failed to save. | Attendance | — | 3-Jul |
+| `[✓]` | APT-124 | Attendance Entry color coding per client key — each code gets its own cell color (P green, ILL red, PTO orange, H yellow, BRV purple, O pink, IT brown, PD blue) plus a color key legend above the grid | Attendance | — | 3-Jul |
 
 ### M — 3–8 hours each
 
@@ -155,6 +156,7 @@ These tasks are about confirming data accuracy and signing off on the tool with 
 | APT-121 | Attendance Entry → **Export CSV** button (top-right of the action row) should download a file with every saved attendance record: Agent, Date, Code, Code Name. Attendance Summary → **Export CSV** button (right of the filter bar) should download Agent, Team, Month, Scheduled Days, Available Days, Attendance % for all months. Both exports include everything, not just the month/team on screen. Files open in Excel. |
 | APT-122 | Attendance Entry → enter attendance for **Jovana** and **Mindy**, click Save All Changes, then refresh the page → their entries should still be there. Also check whether those two show up on the **Attendance Summary** page — if they don't, tell me: that part lives in the database and needs the Supabase admin to adjust (likely a missing team assignment). |
 | APT-123 | On STAGING, hard-refresh (Ctrl+Shift+R) first. Attendance Entry → June → enter a code on June 26 for Jovana and Mindy → Save All Changes. Either it says "Saved" (then refresh — entries must persist, and June must show them on Attendance Summary too), or a red message names exactly which entries didn't save — report that message word for word. |
+| APT-124 | Attendance Entry → a color key row should appear above the grid (one colored chip per code). Cells should be colored by their code per the client's key: P green, ILL red, PTO orange, H yellow, BRV purple, O pink, IT brown, PD blue. Codes not in the key keep the old green/yellow/lavender category colors. |
 
 ---
 

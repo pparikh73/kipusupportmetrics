@@ -82,10 +82,28 @@ function getUSHolidays(year, targetMonth) {
 
 // ── Cell styling ──────────────────────────────────────────────────────────────
 
+// Per-code colors matching the client's color key
+const CODE_COLORS = {
+  P:   '#b6e8a0',  // Present — green
+  ILL: '#f89b94',  // Sick — red
+  PTO: '#f9cf9b',  // Paid Time Off — orange
+  H:   '#f9f3a6',  // Holiday — yellow
+  BRV: '#b4abe4',  // Bereavement — purple
+  O:   '#fbb6f0',  // Other — pink
+  IT:  '#c8a4a5',  // Tech Issues — brown
+  PD:  '#a6d5ec',  // Partial Day — blue
+}
+
+function codeColor(code) {
+  return CODE_COLORS[String(code ?? '').toUpperCase()] ?? null
+}
+
 function cellBg(day, iso, cell, holidayIsos) {
   const weekend = isWeekend(day)
   const holiday = holidayIsos.has(iso)
   if (cell) {
+    const mapped = codeColor(cell.code)
+    if (mapped) return mapped
     if (cell.counts_as_available) return weekend ? '#bbf7d0' : '#dcfce7'      // green — present
     if (cell.counts_as_scheduled) return '#fef9c3'                             // yellow — absent/pto
     return '#ede9fe'                                                           // lavender — off/holiday
@@ -520,6 +538,27 @@ export default function AttendanceEntry() {
           {exporting ? 'Exporting…' : 'Export CSV'}
         </button>
       </div>
+
+      {/* Color key */}
+      {codes.length > 0 && (
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 12 }}>
+          {codes.map((c) => (
+            <span
+              key={c.id}
+              style={{
+                background: codeColor(c.code) ?? '#e5e7eb',
+                border: '1px solid rgba(0,0,0,0.1)',
+                borderRadius: 6,
+                padding: '3px 10px',
+                fontSize: 12,
+                color: '#1f2937',
+              }}
+            >
+              {c.code_name} — <strong>{c.code}</strong>
+            </span>
+          ))}
+        </div>
+      )}
 
       {/* Holiday panel */}
       {showHolidays && (
