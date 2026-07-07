@@ -82,10 +82,28 @@ function getUSHolidays(year, targetMonth) {
 
 // ── Cell styling ──────────────────────────────────────────────────────────────
 
+// Per-code colors matching the client's color key
+const CODE_COLORS = {
+  P:   '#b6e8a0',  // Present — green
+  ILL: '#f89b94',  // Sick — red
+  PTO: '#f9cf9b',  // Paid Time Off — orange
+  H:   '#f9f3a6',  // Holiday — yellow
+  BRV: '#b4abe4',  // Bereavement — purple
+  O:   '#fbb6f0',  // Other — pink
+  IT:  '#c8a4a5',  // Tech Issues — brown
+  PD:  '#a6d5ec',  // Partial Day — blue
+}
+
+function codeColor(code) {
+  return CODE_COLORS[String(code ?? '').toUpperCase()] ?? null
+}
+
 function cellBg(day, iso, cell, holidayIsos) {
   const weekend = isWeekend(day)
   const holiday = holidayIsos.has(iso)
   if (cell) {
+    const mapped = codeColor(cell.code)
+    if (mapped) return mapped
     if (cell.counts_as_available) return weekend ? '#bbf7d0' : '#dcfce7'      // green — present
     if (cell.counts_as_scheduled) return '#fef9c3'                             // yellow — absent/pto
     return '#ede9fe'                                                           // lavender — off/holiday
@@ -521,6 +539,7 @@ export default function AttendanceEntry() {
         </button>
       </div>
 
+
       {/* Holiday panel */}
       {showHolidays && (
         <HolidayPanel
@@ -734,24 +753,15 @@ export default function AttendanceEntry() {
         </div>
       )}
 
-      {/* Legend */}
-      {!loading && displayAgents.length > 0 && (
-        <div style={{ display: 'flex', gap: 16, marginTop: 8, fontSize: 11, color: '#6b7a8d', flexWrap: 'wrap' }}>
-          <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-            <span style={{ width: 14, height: 14, background: '#f3f4f6', border: '1px solid #e2e6ea', borderRadius: 2, display: 'inline-block' }} /> Weekend
-          </span>
-          <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-            <span style={{ width: 14, height: 14, background: '#dbeafe', border: '1px solid #e2e6ea', borderRadius: 2, display: 'inline-block' }} /> Holiday
-          </span>
-          <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-            <span style={{ width: 14, height: 14, background: '#dcfce7', border: '1px solid #e2e6ea', borderRadius: 2, display: 'inline-block' }} /> Present (available)
-          </span>
-          <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-            <span style={{ width: 14, height: 14, background: '#fef9c3', border: '1px solid #e2e6ea', borderRadius: 2, display: 'inline-block' }} /> Absent / PTO
-          </span>
-          <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-            <span style={{ width: 14, height: 14, background: '#ede9fe', border: '1px solid #e2e6ea', borderRadius: 2, display: 'inline-block' }} /> Off / Holiday code
-          </span>
+      {/* Color key — one entry per attendance code, plus unsaved-change marker */}
+      {!loading && displayAgents.length > 0 && codes.length > 0 && (
+        <div style={{ display: 'flex', gap: 16, marginTop: 10, fontSize: 11, color: '#6b7a8d', flexWrap: 'wrap' }}>
+          {codes.map((c) => (
+            <span key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+              <span style={{ width: 14, height: 14, background: codeColor(c.code) ?? '#e5e7eb', border: '1px solid #e2e6ea', borderRadius: 2, display: 'inline-block' }} />
+              {c.code_name} — <strong>{c.code}</strong>
+            </span>
+          ))}
           <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
             <span style={{ width: 14, height: 14, background: '#fff', border: '2px solid #f59e0b', borderRadius: 2, display: 'inline-block' }} /> Unsaved change
           </span>
