@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from 'react'
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import {
   getTeams, getAgents, getAllAgents,
   getAttendanceCodes, getAttendanceFacts,
@@ -157,6 +157,8 @@ export default function AttendanceEntry() {
   const [loading, setLoading] = useState(false)
   const [saving, setSaving]   = useState(false)
   const [exporting, setExporting] = useState(false)
+  const [importing, setImporting] = useState(false)
+  const importFileRef = useRef(null)
   const [error, setError]     = useState('')
   const [saveMsg, setSaveMsg] = useState('')
 
@@ -289,6 +291,66 @@ export default function AttendanceEntry() {
       setError(e.message)
     } finally {
       setExporting(false)
+    }
+  }
+
+  // ── CSV import — bulk-load attendance from a file (Agent, Date, Code) ───────
+
+  async function importCsvFile(file) {
+    setImporting(true)
+    setError('')
+    try {
+      const text = await file.text()
+      const lines = text.split(/\r?\n/).filter((l) => l.trim())
+      const header = (lines[0] ?? '').toLowerCase()
+      if (!header.includes('agent') || !header.includes('date') || !header.includes('code')) {
+        throw new Error('The file must be a CSV with columns: Agent, Date, Code')
+      }
+      const allAgents = await getAllAgents()
+      const idByName = {}
+      allAgents.forEach((a) => { idByName[String(a.agent_name).trim().toLowerCase()] = a.id })
+      const codeIdByCode = {}
+      codes.forEach((c) => { codeIdByCode[String(c.code).toUpperCase()] = c.id })
+
+      const rows = []
+      const unknownAgents = new Set()
+      const unknownCodes = new Set()
+      for (const line of lines.slice(1)) {
+        const parts = line.split(',').map((s) => s.replace(/^"|"$/g, '').trim())
+        if (parts.length < 3) continue
+        const [name, date, codeStr] = parts
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) continue
+        const agentId = idByName[name.toLowerCase()]
+        if (!agentId) { unknownAgents.add(name); continue }
+        const codeId = codeIdByCode[codeStr.toUpperCase()]
+        if (!codeId) { unknownCodes.add(codeStr); continue }
+        rows.push({ attendance_date: date, agent_id: agentId, attendance_code_id: codeId, source: 'import', notes: null })
+      }
+      if (!rows.length) throw new Error('No importable rows found in the file.')
+
+      const dates = rows.map((r) => r.attendance_date).sort()
+      const ok = window.confirm(
+        `Import ${rows.length} attendance entries (${dates[0]} to ${dates[dates.length - 1]})?\n\n` +
+        'Existing entries for the same agent and day will be overwritten.'
+      )
+      if (!ok) return
+
+      let saved = 0
+      for (let i = 0; i < rows.length; i += 400) {
+        const res = await upsertAttendance(rows.slice(i, i + 400))
+        saved += res?.length ?? 0
+      }
+      setSaveMsg(`Imported ${saved} attendance entries.`)
+      setTimeout(() => setSaveMsg(''), 8000)
+      const skipped = []
+      if (unknownAgents.size) skipped.push(`agent names not found in the system: ${[...unknownAgents].join(', ')}`)
+      if (unknownCodes.size)  skipped.push(`codes not found: ${[...unknownCodes].join(', ')}`)
+      if (skipped.length) setError(`Some rows were skipped — ${skipped.join('; ')}`)
+      await loadAttendance()
+    } catch (e) {
+      setError(e.message)
+    } finally {
+      setImporting(false)
     }
   }
 
@@ -536,6 +598,16 @@ export default function AttendanceEntry() {
         </button>
         <button className="btn btn-secondary" onClick={exportCsv} disabled={exporting}>
           {exporting ? 'Exporting…' : 'Export CSV'}
+        </button>
+        <input
+          ref={importFileRef}
+          type="file"
+          accept=".csv"
+          style={{ display: 'none' }}
+          onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; if (f) importCsvFile(f) }}
+        />
+        <button className="btn btn-secondary" onClick={() => importFileRef.current?.click()} disabled={importing || saving}>
+          {importing ? 'Importing…' : 'Import CSV'}
         </button>
       </div>
 
