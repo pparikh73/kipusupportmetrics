@@ -539,26 +539,6 @@ export default function AttendanceEntry() {
         </button>
       </div>
 
-      {/* Color key */}
-      {codes.length > 0 && (
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 12 }}>
-          {codes.map((c) => (
-            <span
-              key={c.id}
-              style={{
-                background: codeColor(c.code) ?? '#e5e7eb',
-                border: '1px solid rgba(0,0,0,0.1)',
-                borderRadius: 6,
-                padding: '3px 10px',
-                fontSize: 12,
-                color: '#1f2937',
-              }}
-            >
-              {c.code_name} — <strong>{c.code}</strong>
-            </span>
-          ))}
-        </div>
-      )}
 
       {/* Holiday panel */}
       {showHolidays && (
@@ -770,6 +750,18 @@ export default function AttendanceEntry() {
               })}
             </tbody>
           </table>
+        </div>
+      )}
+
+      {/* Color key — one entry per attendance code */}
+      {!loading && displayAgents.length > 0 && codes.length > 0 && (
+        <div style={{ display: 'flex', gap: 16, marginTop: 10, fontSize: 11, color: '#6b7a8d', flexWrap: 'wrap' }}>
+          {codes.map((c) => (
+            <span key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+              <span style={{ width: 14, height: 14, background: codeColor(c.code) ?? '#e5e7eb', border: '1px solid #e2e6ea', borderRadius: 2, display: 'inline-block' }} />
+              {c.code_name} — <strong>{c.code}</strong>
+            </span>
+          ))}
         </div>
       )}
 
