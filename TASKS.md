@@ -68,7 +68,7 @@
 | `[✅]` | APT-121 | Export CSV buttons on Attendance Entry (all day-by-day records: Agent, Date, Code) and Attendance Summary (all months: Agent, Team, Month, Scheduled, Available, %) — exports include ALL attendance data regardless of on-screen filters | Attendance | — | 3-Jul |
 | `[✅]` | APT-122 | Attendance Entry not saving for Jovana and Mindy — entries actually saved but the grid re-loaded through a view that drops agents without an active team assignment; grid and CSV export now read straight from the saved records | Attendance | — | 3-Jul |
 | `[✅]` | APT-123 | Follow-up to APT-122 (June 26 still missing for Jovana/Mindy): Attendance Summary, dashboards' Attendance %, and both CSV exports now all compute from the raw saved records — no dependence on team-assignment date windows anywhere. Save now also verifies and shows a plain-English error naming any entry that failed to save. | Attendance | — | 3-Jul |
-| `[✓]` | APT-124 | Attendance Entry color coding per client key — each code gets its own cell color (P green, ILL red, PTO orange, H yellow, BRV purple, O pink, IT brown, PD blue) plus a color key legend above the grid | Attendance | — | 3-Jul |
+| `[✅]` | APT-124 | Attendance Entry color coding per client key — each code gets its own cell color (P green, ILL red, PTO orange, H yellow, BRV purple, O pink, IT brown, PD blue) plus a color key legend above the grid | Attendance | — | 3-Jul |
 
 ### M — 3–8 hours each
 
