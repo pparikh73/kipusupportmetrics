@@ -262,7 +262,8 @@ export default function AttendanceEntry() {
       if (cell.counts_as_available) avail++
     })
     if (sched === 0) return null
-    return (avail / sched * 100).toFixed(1)
+    // Round to the nearest whole number (.5 and up rounds up)
+    return String(Math.round(avail / sched * 100))
   }
 
   // ── CSV export — every saved attendance record, all months and teams ────────
