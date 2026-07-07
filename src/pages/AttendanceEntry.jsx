@@ -753,7 +753,7 @@ export default function AttendanceEntry() {
         </div>
       )}
 
-      {/* Color key — one entry per attendance code */}
+      {/* Color key — one entry per attendance code, plus unsaved-change marker */}
       {!loading && displayAgents.length > 0 && codes.length > 0 && (
         <div style={{ display: 'flex', gap: 16, marginTop: 10, fontSize: 11, color: '#6b7a8d', flexWrap: 'wrap' }}>
           {codes.map((c) => (
@@ -762,27 +762,6 @@ export default function AttendanceEntry() {
               {c.code_name} — <strong>{c.code}</strong>
             </span>
           ))}
-        </div>
-      )}
-
-      {/* Legend */}
-      {!loading && displayAgents.length > 0 && (
-        <div style={{ display: 'flex', gap: 16, marginTop: 8, fontSize: 11, color: '#6b7a8d', flexWrap: 'wrap' }}>
-          <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-            <span style={{ width: 14, height: 14, background: '#f3f4f6', border: '1px solid #e2e6ea', borderRadius: 2, display: 'inline-block' }} /> Weekend
-          </span>
-          <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-            <span style={{ width: 14, height: 14, background: '#dbeafe', border: '1px solid #e2e6ea', borderRadius: 2, display: 'inline-block' }} /> Holiday
-          </span>
-          <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-            <span style={{ width: 14, height: 14, background: '#dcfce7', border: '1px solid #e2e6ea', borderRadius: 2, display: 'inline-block' }} /> Present (available)
-          </span>
-          <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-            <span style={{ width: 14, height: 14, background: '#fef9c3', border: '1px solid #e2e6ea', borderRadius: 2, display: 'inline-block' }} /> Absent / PTO
-          </span>
-          <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-            <span style={{ width: 14, height: 14, background: '#ede9fe', border: '1px solid #e2e6ea', borderRadius: 2, display: 'inline-block' }} /> Off / Holiday code
-          </span>
           <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
             <span style={{ width: 14, height: 14, background: '#fff', border: '2px solid #f59e0b', borderRadius: 2, display: 'inline-block' }} /> Unsaved change
           </span>
