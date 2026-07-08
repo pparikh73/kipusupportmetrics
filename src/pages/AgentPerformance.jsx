@@ -535,7 +535,9 @@ export default function AgentPerformance() {
   const mergedRows = mergeMetrics(allMetrics, monthDetail)
 
   // APT-88: Apply per-agent adjustments — excluded metrics drop from the score,
-  // custom goals recalculate on/off track for this agent+month only
+  // custom goals recalculate on/off track for this agent+month only.
+  // A metric with a manager-set goal always counts toward the overall rating,
+  // even if it is normally an "additional" (non-scored) metric.
   const allRows = useMemo(() => mergedRows.map((row) => {
     const adj = adjustments[row.metric_key]
     if (!adj) return row
@@ -543,9 +545,9 @@ export default function AgentPerformance() {
     const goal_value = adj.goal ?? row.goal_value
     const tolerance_value = adj.tolerance ?? row.tolerance_value
     const metric_status = row.actual_value != null
-      ? deriveStatus(row.actual_value, { goal_value, tolerance_value, direction_good: row.direction_good })
+      ? deriveStatus(row.actual_value, { goal_value, tolerance_value, direction_good: row.direction_good ?? 'at_or_above' })
       : row.metric_status
-    return { ...row, goal_value, tolerance_value, metric_status, adjustment: adj }
+    return { ...row, goal_value, tolerance_value, metric_status, adjustment: adj, counts_toward_score: true }
   }), [mergedRows, adjustments])
 
   const selectedMonthLabel = MONTH_OPTIONS.find((m) => m.value === selMonth)?.label ?? selMonth
