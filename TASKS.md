@@ -45,7 +45,7 @@
 | `[~]` | APT-46 | Show goal, actual, tolerance, and status for each metric — in progress; dev team has access to team goal spreadsheets (Billing, RCM, CRM) shared 12-Jun; goal values being corrected | Team Dashboard | Angelique | 1-Jun |
 | `[✅]` | APT-60 | Make the left panel collapsible | All | Angelique | 29-May |
 | `[✅]` | APT-61 | Keep filters persistent across tabs (team, agent, month, year) | All | Angelique | 29-May |
-| `[✓]` | APT-62 | Use the full screen width — RESOLVED 8-Jul per client feedback: the full-width experiment left a large empty gap between the Metric column and the data columns, so Trend (Agent Perf) and the Team Dashboard metric tables are back to compact layout matching Quarterly/Half-Year. Leaderboard stays full width. | All | Chad | 8-Jul |
+| `[✅]` | APT-62 | Use the full screen width — RESOLVED 8-Jul per client feedback: the full-width experiment left a large empty gap between the Metric column and the data columns, so Trend (Agent Perf) and the Team Dashboard metric tables are back to compact layout matching Quarterly/Half-Year. Leaderboard stays full width. | All | Chad | 8-Jul |
 | `[ ]` | APT-68 | Show the rating distribution | Team Dashboard | Chad | 1-Jun |
 | `[✅]` | APT-69 | Fix supervisors showing under Leadership — role label renamed to "Supervisors" | Team Dashboard | Chad | 1-Jun |
 | `[✅]` | APT-70 | Clean up the quarterly view (dropdown, separators) | Team Dashboard | Angelique | 29-May |
