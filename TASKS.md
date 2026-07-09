@@ -74,7 +74,7 @@
 | `[✅]` | APT-126 | Refreshing the browser on any page showed a 404 NOT_FOUND error — hosting now serves the app for every address so refresh and direct links work on all pages | All | — | 9-Jul |
 | `[✅]` | APT-127 | Each Help article now has its own web address (/help/article-name) — opening an article updates the URL, so copying and sharing the link takes the recipient straight to that article instead of the Help home page | Help | — | 9-Jul |
 | `[ ]` | APT-128 | Extend metric adjustments (APT-88) to the rollup views — Quarterly, Half-Year, YTD, and Trend tabs should honor per-agent custom goals and exclusions from each month (requires loading the whole year's adjustments, then applying them to the rollup and trend calculations) | Agent Perf | — | — |
-| `[✓]` | APT-129 | Display ALL metrics as whole numbers (.5 and up rounds up) — days and hours previously showed two decimals (6.16 days → 6 days, 1.46 hrs → 1 hr); applies across Agent Performance and Team Dashboard, all tabs | Agent Perf / Team | — | 9-Jul |
+| `[✅]` | APT-129 | Display ALL metrics as whole numbers (.5 and up rounds up) — days and hours previously showed two decimals (6.16 days → 6 days, 1.46 hrs → 1 hr); applies across Agent Performance and Team Dashboard, all tabs | Agent Perf / Team | — | 9-Jul |
 
 ### M — 3–8 hours each
 
