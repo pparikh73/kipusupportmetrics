@@ -6,6 +6,8 @@ import {
   getSummary, getAgentMonthNote, upsertAgentMonthNote, getActiveGoals,
 } from '../lib/api'
 import { formatValue, statusLabel, statusClass, ratingClass, computeRating } from '../lib/format'
+import Modal from '../components/Modal'
+import { parseNoteAdjustments, serializeNoteWithAdjustments } from '../lib/adjustments'
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -133,11 +135,21 @@ function StatusCell({ status }) {
   return <span style={{ color: '#9ca3af', fontSize: 11, fontStyle: 'italic' }}>{statusLabel(status)}</span>
 }
 
-function MetricRow({ row }) {
+function MetricRow({ row, onAdjust }) {
   const hasActual = row.actual_value != null
+  const adj = row.adjustment
+  const excluded = row.metric_status === 'excluded'
+  const adjTitle = adj ? `${adj.exclude ? 'Excluded' : 'Custom goal'}${adj.reason ? `: ${adj.reason}` : ''}${adj.by ? ` — ${adj.by}` : ''}` : undefined
   return (
-    <tr>
-      <td style={{ fontWeight: 500, minWidth: 160 }}>{row.metric_name}</td>
+    <tr style={excluded ? { opacity: 0.55 } : undefined}>
+      <td style={{ fontWeight: 500, minWidth: 160 }}>
+        {row.metric_name}
+        {adj && !excluded && (
+          <span title={adjTitle} style={{ marginLeft: 6, fontSize: 10, fontWeight: 700, color: '#7c3aed', background: '#ede9fe', borderRadius: 8, padding: '1px 6px', cursor: 'help' }}>
+            custom goal
+          </span>
+        )}
+      </td>
       <td style={{ textAlign: 'right', fontWeight: hasActual ? 600 : 400, color: hasActual ? '#1a1a2e' : '#adb5bd' }}>
         {hasActual ? formatValue(row.actual_value, row.unit_type) : '—'}
       </td>
@@ -147,8 +159,97 @@ function MetricRow({ row }) {
       <td style={{ textAlign: 'right', color: '#6b7a8d' }}>
         {row.tolerance_value != null ? `±${row.tolerance_value}` : '—'}
       </td>
-      <td><StatusCell status={row.metric_status} /></td>
+      <td>
+        {excluded
+          ? <span title={adjTitle} style={{ color: '#9ca3af', fontSize: 11, fontStyle: 'italic', cursor: 'help' }}>Excluded</span>
+          : <StatusCell status={row.metric_status} />}
+      </td>
+      {onAdjust && (
+        <td style={{ textAlign: 'center' }}>
+          <button className="btn btn-secondary btn-sm" onClick={() => onAdjust(row)} style={{ fontSize: 11 }}>
+            {adj ? 'Edit' : 'Adjust'}
+          </button>
+        </td>
+      )}
     </tr>
+  )
+}
+
+// APT-88: Pop-up for excluding a metric or setting a custom goal for one agent+month
+function AdjustModal({ row, supervisors, defaultBy, saving, onSave, onRemove, onClose }) {
+  const existing = row.adjustment
+  const [mode, setMode] = useState(existing?.exclude ? 'exclude' : 'goal')
+  const [goal, setGoal] = useState(existing?.goal ?? row.goal_value ?? '')
+  const [tolerance, setTolerance] = useState(existing?.tolerance ?? row.tolerance_value ?? '')
+  const [reason, setReason] = useState(existing?.reason ?? '')
+  const [by, setBy] = useState(existing?.by ?? defaultBy ?? '')
+  const canSave = reason.trim() !== '' && (mode === 'exclude' || goal !== '')
+  return (
+    <Modal
+      title={`Adjust — ${row.metric_name}`}
+      onClose={onClose}
+      footer={
+        <>
+          {existing && (
+            <button className="btn btn-danger" onClick={onRemove} disabled={saving} style={{ marginRight: 'auto' }}>
+              Remove Adjustment
+            </button>
+          )}
+          <button className="btn btn-secondary" onClick={onClose} disabled={saving}>Cancel</button>
+          <button
+            className="btn btn-primary"
+            disabled={!canSave || saving}
+            onClick={() => onSave({
+              metric_key: row.metric_key,
+              ...(mode === 'exclude'
+                ? { exclude: true }
+                : { goal: Number(goal), ...(tolerance !== '' ? { tolerance: Number(tolerance) } : {}) }),
+              reason: reason.replace(/[|\n\r]+/g, ' ').trim(),
+              by: by || undefined,
+            })}
+          >
+            {saving ? 'Saving…' : 'Save Adjustment'}
+          </button>
+        </>
+      }
+    >
+      <div className="form-group">
+        <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, cursor: 'pointer', marginBottom: 6 }}>
+          <input type="radio" name="adj-mode" checked={mode === 'goal'} onChange={() => setMode('goal')} />
+          Custom goal for this agent, this month (e.g. new hire or PIP)
+        </label>
+        <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, cursor: 'pointer' }}>
+          <input type="radio" name="adj-mode" checked={mode === 'exclude'} onChange={() => setMode('exclude')} />
+          Exclude this metric from the score this month
+        </label>
+      </div>
+      {mode === 'goal' && (
+        <div className="form-row">
+          <div className="form-group">
+            <label className="form-label">Custom Goal</label>
+            <input className="form-input" type="number" step="any" value={goal} onChange={(e) => setGoal(e.target.value)} />
+          </div>
+          <div className="form-group">
+            <label className="form-label">Tolerance (optional)</label>
+            <input className="form-input" type="number" step="any" value={tolerance} onChange={(e) => setTolerance(e.target.value)} placeholder="Keep team tolerance" />
+          </div>
+        </div>
+      )}
+      <div className="form-group">
+        <label className="form-label">Reason (required)</label>
+        <textarea className="form-input" rows={2} value={reason} onChange={(e) => setReason(e.target.value)} placeholder={mode === 'exclude' ? 'e.g. CSAT ticket not agent’s fault' : 'e.g. 90-day new hire ramp goal'} />
+      </div>
+      <div className="form-group">
+        <label className="form-label">Adjusted By</label>
+        <select className="form-select" value={by} onChange={(e) => setBy(e.target.value)}>
+          <option value="">— Select supervisor —</option>
+          {supervisors.map((s) => <option key={s.id} value={s.agent_name}>{s.agent_name}</option>)}
+        </select>
+      </div>
+      <p style={{ fontSize: 11, color: '#6b7a8d', marginTop: 4 }}>
+        The adjustment is recorded in this agent&apos;s monthly supervisor note and only affects this agent for {row.metric_month ? String(row.metric_month).slice(0, 7) : 'this month'}.
+      </p>
+    </Modal>
   )
 }
 
@@ -256,6 +357,11 @@ export default function AgentPerformance() {
   const [supervisors, setSupervisors] = useState([])
   const [notesVisible, setNotesVisible] = useState(true)
 
+  // APT-88: Per-metric adjustments for the selected agent+month
+  const [adjustments, setAdjustments] = useState({})
+  const [adjustRow, setAdjustRow] = useState(null)
+  const [adjustSaving, setAdjustSaving] = useState(false)
+
   const [loading, setLoading]         = useState(false)
   const [yearLoading, setYearLoading] = useState(false)
   const [error, setError]             = useState('')
@@ -314,9 +420,10 @@ export default function AgentPerformance() {
       .then(([sc, sumRows, noteRow, histGoals]) => {
         setMonthDetail(applyHistoricalGoals(sc, histGoals))
         setSummary(sumRows[0] ?? null)
-        const t = noteRow?.note_text ?? ''
-        setNote(t)
-        setSavedNote(t)
+        const { cleanNote, adjustments: adj } = parseNoteAdjustments(noteRow?.note_text ?? '')
+        setNote(cleanNote)
+        setSavedNote(cleanNote)
+        setAdjustments(adj)
         setNoteCreatedAt(noteRow?.created_at ?? null)
         setNoteCreatedBy(noteRow?.created_by ?? null)
       })
@@ -342,7 +449,7 @@ export default function AgentPerformance() {
       await upsertAgentMonthNote({
         agentId: Number(agentId),
         noteMonth: `${year}-${selMonth}`,
-        noteText: note,
+        noteText: serializeNoteWithAdjustments(note, adjustments),
         createdBy: noteSupervisor || null,
       })
       setSavedNote(note)
@@ -357,12 +464,47 @@ export default function AgentPerformance() {
     }
   }
 
+  // APT-88: Save or remove an adjustment — persists inside the monthly note
+  async function persistAdjustments(nextAdjustments) {
+    setAdjustSaving(true)
+    try {
+      await upsertAgentMonthNote({
+        agentId: Number(agentId),
+        noteMonth: `${year}-${selMonth}`,
+        noteText: serializeNoteWithAdjustments(note, nextAdjustments),
+        createdBy: noteSupervisor || noteCreatedBy || null,
+      })
+      setAdjustments(nextAdjustments)
+      setAdjustRow(null)
+    } catch (e) {
+      setError('Could not save the adjustment: ' + e.message)
+    } finally {
+      setAdjustSaving(false)
+    }
+  }
+
   // APT-65: Build display metric list with inactiveKeys filter
   const allMetrics    = useMemo(() => buildMetricList(monthDetail, metricDefs, inactiveKeys), [monthDetail, metricDefs, inactiveKeys])
   const rollupMetrics = useMemo(() => buildMetricList(yearDetail,  metricDefs, inactiveKeys), [yearDetail,  metricDefs, inactiveKeys])
 
   // Merge produces a row for every display metric (placeholder when agent has no data for it)
-  const allRows = mergeMetrics(allMetrics, monthDetail)
+  const mergedRows = mergeMetrics(allMetrics, monthDetail)
+
+  // APT-88: Apply per-agent adjustments — excluded metrics drop from the score,
+  // custom goals recalculate on/off track for this agent+month only.
+  // A metric with a manager-set goal always counts toward the overall rating,
+  // even if it is normally an "additional" (non-scored) metric.
+  const allRows = useMemo(() => mergedRows.map((row) => {
+    const adj = adjustments[row.metric_key]
+    if (!adj) return row
+    if (adj.exclude) return { ...row, metric_status: 'excluded', adjustment: adj }
+    const goal_value = adj.goal ?? row.goal_value
+    const tolerance_value = adj.tolerance ?? row.tolerance_value
+    const metric_status = row.actual_value != null
+      ? deriveStatus(row.actual_value, { goal_value, tolerance_value, direction_good: row.direction_good ?? 'at_or_above' })
+      : row.metric_status
+    return { ...row, goal_value, tolerance_value, metric_status, adjustment: adj, counts_toward_score: true }
+  }), [mergedRows, adjustments])
 
   const selectedMonthLabel = MONTH_OPTIONS.find((m) => m.value === selMonth)?.label ?? selMonth
 
@@ -524,10 +666,11 @@ export default function AgentPerformance() {
                       <th style={{ width: 80, textAlign: 'right' }}>Goal</th>
                       <th style={{ width: 80, textAlign: 'right' }}>Tolerance</th>
                       <th style={{ width: 100 }}>Status</th>
+                      <th style={{ width: 70 }}></th>
                     </tr>
                   </thead>
                   <tbody>
-                    {allRows.map((r) => <MetricRow key={r.metric_key} row={r} />)}
+                    {allRows.map((r) => <MetricRow key={r.metric_key} row={r} onAdjust={setAdjustRow} />)}
                   </tbody>
                 </table>
               </div>
@@ -698,6 +841,23 @@ export default function AgentPerformance() {
             )}
           </div>
         </>
+      )}
+
+      {/* APT-88: Adjustment pop-up */}
+      {adjustRow && (
+        <AdjustModal
+          row={allRows.find((r) => r.metric_key === adjustRow.metric_key) ?? adjustRow}
+          supervisors={supervisors}
+          defaultBy={noteSupervisor}
+          saving={adjustSaving}
+          onClose={() => setAdjustRow(null)}
+          onSave={(adj) => persistAdjustments({ ...adjustments, [adj.metric_key]: adj })}
+          onRemove={() => {
+            const next = { ...adjustments }
+            delete next[adjustRow.metric_key]
+            persistAdjustments(next)
+          }}
+        />
       )}
     </div>
   )
