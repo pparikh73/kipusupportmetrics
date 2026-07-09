@@ -1,7 +1,8 @@
-import { useState, useEffect } from 'react'
-import { getAllNotes, upsertAgentMonthNote, getAllAgents, getTeams } from '../../lib/api'
+import { useState, useEffect, useMemo } from 'react'
+import { getAllNotes, upsertAgentMonthNote, getAllAgents, getAllMetricDefinitions } from '../../lib/api'
 import Modal from '../../components/Modal'
 import { recentMonths } from '../../lib/format'
+import { parseNoteAdjustments, serializeNoteWithAdjustments, describeAdjustment } from '../../lib/adjustments'
 
 export default function AdminNotes() {
   const months = recentMonths(18)
@@ -16,8 +17,15 @@ export default function AdminNotes() {
   const [agentFilter, setAgentFilter] = useState('')
   const [monthFilter, setMonthFilter] = useState('')
 
+  const [metricNames, setMetricNames] = useState({})
+
   useEffect(() => {
     getAllAgents().then((all) => setSupervisors(all.filter((a) => a.role === 'Supervisor' && a.active))).catch(() => {})
+    getAllMetricDefinitions().then((defs) => {
+      const m = {}
+      defs.forEach((d) => { m[d.metric_key] = d.metric_name })
+      setMetricNames(m)
+    }).catch(() => {})
   }, [])
 
   const load = () => {
@@ -39,7 +47,9 @@ export default function AdminNotes() {
       await upsertAgentMonthNote({
         agentId: Number(editing.agent_id),
         noteMonth: editing.metric_month,
-        noteText: editing.note_text,
+        // Editing here only touches the note text — any metric adjustments
+        // recorded on this note are preserved as-is
+        noteText: serializeNoteWithAdjustments(editing.note_text, editing._adjustments),
         createdBy: editing.created_by || 'admin',
       })
       setEditing(null)
@@ -50,6 +60,24 @@ export default function AdminNotes() {
       setSaving(false)
     }
   }
+
+  // Split every note into its written part and its metric adjustments
+  const parsedRows = useMemo(() => rows.map((r) => {
+    const { cleanNote, adjustments } = parseNoteAdjustments(r.note_text)
+    return { ...r, cleanNote, adjustmentList: Object.values(adjustments), _adjustments: adjustments }
+  }), [rows])
+
+  const adjustmentRows = useMemo(() => parsedRows.flatMap((r) =>
+    r.adjustmentList.map((adj) => ({
+      key: `${r.id}:${adj.metric_key}`,
+      agent: r.metrics_agents?.agent_name ?? r.agent_id,
+      month: r.metric_month?.slice(0, 7) ?? '—',
+      metric: metricNames[adj.metric_key] ?? adj.metric_key,
+      change: describeAdjustment(adj),
+      reason: adj.reason ?? '—',
+      by: adj.by ?? '—',
+    }))
+  ), [parsedRows, metricNames])
 
   return (
     <div className="page">
@@ -86,33 +114,70 @@ export default function AdminNotes() {
       </div>
 
       {loading ? <div className="loading">Loading...</div> : (
-        <div className="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>Agent</th>
-                <th>Month</th>
-                <th>Note</th>
-                <th>Created By</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((r) => (
-                <tr key={r.id}>
-                  <td style={{ fontWeight: 500 }}>{r.metrics_agents?.agent_name ?? r.agent_id}</td>
-                  <td style={{ fontSize: 12 }}>{r.metric_month?.slice(0, 7) ?? '—'}</td>
-                  <td style={{ fontSize: 12, maxWidth: 400 }}>{r.note_text}</td>
-                  <td style={{ fontSize: 12, color: '#6b7a8d' }}>{r.created_by ?? '—'}</td>
-                  <td><button className="btn btn-sm btn-secondary" onClick={() => setEditing({ ...r, metrics_agents: undefined })}>Edit</button></td>
+        <>
+          <div className="section-title">Supervisor Notes</div>
+          <div className="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Agent</th>
+                  <th>Month</th>
+                  <th>Note</th>
+                  <th>Created By</th>
+                  <th></th>
                 </tr>
-              ))}
-              {rows.length === 0 && (
-                <tr><td colSpan={5} style={{ textAlign: 'center', padding: 32, color: '#6b7a8d' }}>No notes found.</td></tr>
-              )}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody>
+                {parsedRows.map((r) => (
+                  <tr key={r.id}>
+                    <td style={{ fontWeight: 500 }}>{r.metrics_agents?.agent_name ?? r.agent_id}</td>
+                    <td style={{ fontSize: 12 }}>{r.metric_month?.slice(0, 7) ?? '—'}</td>
+                    <td style={{ fontSize: 12, maxWidth: 400 }}>
+                      {r.cleanNote || <span style={{ color: '#adb5bd', fontStyle: 'italic' }}>{r.adjustmentList.length ? '(no written note — has metric adjustments)' : ''}</span>}
+                    </td>
+                    <td style={{ fontSize: 12, color: '#6b7a8d' }}>{r.created_by ?? '—'}</td>
+                    <td><button className="btn btn-sm btn-secondary" onClick={() => setEditing({ ...r, metrics_agents: undefined, note_text: r.cleanNote })}>Edit</button></td>
+                  </tr>
+                ))}
+                {parsedRows.length === 0 && (
+                  <tr><td colSpan={5} style={{ textAlign: 'center', padding: 32, color: '#6b7a8d' }}>No notes found.</td></tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          {/* APT-88: adjustments recorded from the Agent Performance page, tracked separately */}
+          <div className="section-title">Metric Adjustments</div>
+          <div className="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Agent</th>
+                  <th>Month</th>
+                  <th>Metric</th>
+                  <th>Adjustment</th>
+                  <th>Reason</th>
+                  <th>Adjusted By</th>
+                </tr>
+              </thead>
+              <tbody>
+                {adjustmentRows.map((a) => (
+                  <tr key={a.key}>
+                    <td style={{ fontWeight: 500 }}>{a.agent}</td>
+                    <td style={{ fontSize: 12 }}>{a.month}</td>
+                    <td style={{ fontSize: 12 }}>{a.metric}</td>
+                    <td style={{ fontSize: 12, fontWeight: 600, color: a.change.startsWith('Excluded') ? '#842029' : '#7c3aed' }}>{a.change}</td>
+                    <td style={{ fontSize: 12, maxWidth: 300 }}>{a.reason}</td>
+                    <td style={{ fontSize: 12, color: '#6b7a8d' }}>{a.by}</td>
+                  </tr>
+                ))}
+                {adjustmentRows.length === 0 && (
+                  <tr><td colSpan={6} style={{ textAlign: 'center', padding: 32, color: '#6b7a8d' }}>No metric adjustments recorded. They are made from the Agent Performance page via the Adjust button.</td></tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </>
       )}
 
       {editing && (
