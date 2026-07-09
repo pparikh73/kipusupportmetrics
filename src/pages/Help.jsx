@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react'
+import { useParams, useNavigate } from 'react-router-dom'
 import { ARTICLES } from '../lib/helpArticles'
 
 // Render **bold** inside a plain string.
@@ -96,7 +97,9 @@ function Block({ block }) {
 
 export default function Help() {
   const [query, setQuery] = useState('')
-  const [openId, setOpenId] = useState(null)
+  // The open article lives in the URL (/help/<articleId>) so links are shareable
+  const { articleId } = useParams()
+  const navigate = useNavigate()
 
   // Pre-compute the searchable text once.
   const indexed = useMemo(
@@ -111,14 +114,14 @@ export default function Help() {
     return indexed.filter(({ text }) => terms.every((t) => text.includes(t)))
   }, [q, indexed])
 
-  const openArticle = openId ? ARTICLES.find((a) => a.id === openId) : null
+  const openArticle = articleId ? ARTICLES.find((a) => a.id === articleId) : null
 
   // ── Reading view ──────────────────────────────────────────────────────────
   if (openArticle) {
     return (
       <div className="page">
         <div className="page-header">
-          <button className="btn btn-secondary btn-sm" onClick={() => setOpenId(null)} style={{ marginBottom: 12 }}>
+          <button className="btn btn-secondary btn-sm" onClick={() => navigate('/help')} style={{ marginBottom: 12 }}>
             ← Back to Help
           </button>
           <h1 className="page-title">{openArticle.title}</h1>
@@ -166,7 +169,7 @@ export default function Help() {
       ) : (
         <div className="help-grid">
           {matches.map(({ article }) => (
-            <button key={article.id} className="help-card" onClick={() => setOpenId(article.id)}>
+            <button key={article.id} className="help-card" onClick={() => navigate(`/help/${article.id}`)}>
               <div className="help-card-cat">{article.category}</div>
               <div className="help-card-title">{article.title}</div>
               <div className="help-card-summary">{article.summary}</div>
