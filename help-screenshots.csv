@@ -1,0 +1,42 @@
+Request ID,Article,What the screenshot should show,What to highlight / point to,Save file as
+HELP-001,How to Use the Goals Section,The full Goals page,Show goals grouped under their team headings,HELP-001.jpg
+HELP-002,How to Use the Goals Section,Top-right of the Goals page,Point an arrow at the blue "+ Add Goal" button,HELP-002.jpg
+HELP-003,How to Use the Goals Section,The Add Goal pop-up (open it),"All fields visible: Team, Metric, Goal Value, Tolerance, Start Date, End Date, Active",HELP-003.jpg
+HELP-004,How to Use the Goals Section,An agent or team scorecard row,Highlight the Goal, Tolerance and On Track/Off Track columns together,HELP-004.jpg
+HELP-005,How to Use the Goals Section,The Goals filter bar,"Highlight Team, From Date, To Date, Show expired, Show inactive",HELP-005.jpg
+HELP-006,How to Use the Goals Section,The Edit Goal pop-up on an existing goal,Point to the red "Delete Goal" button at bottom-left,HELP-006.jpg
+HELP-007,How to Use the Metrics Section,The full Metrics page,Show the Scored / Additional / Inactive section headings,HELP-007.jpg
+HELP-008,How to Use the Metrics Section,Top of the Metrics page,Point an arrow at the "+ Add Metric" button,HELP-008.jpg
+HELP-009,How to Use the Metrics Section,The Add Metric pop-up (open it),"All fields visible: Metric Name, Key, Unit Type, Direction Good, Display Order",HELP-009.jpg
+HELP-010,How to Use the Metrics Section,The Metrics page,Highlight the Scored Metrics vs Additional Metrics sections,HELP-010.jpg
+HELP-011,How to Use the Metrics Section,Lower part of the Add/Edit Metric pop-up,Point to the "Counts Toward Score" and "Active" checkboxes,HELP-011.jpg
+HELP-012,How to Read the Agent Performance Page,The Agent Performance filter bar,"Highlight Team, Agent, Year, Month selectors",HELP-012.jpg
+HELP-013,How to Read the Agent Performance Page,The page header,Point to the colour-coded Overall Rating,HELP-013.jpg
+HELP-014,How to Read the Agent Performance Page,The tab row,Highlight Monthly / Quarterly / Half-Year / YTD / Trend tabs,HELP-014.jpg
+HELP-015,How to Read the Agent Performance Page,A monthly scorecard row,"Highlight the Actual, Goal, Tolerance, and Status columns",HELP-015.jpg
+HELP-016,How to Read the Agent Performance Page,The Trend tab open,Show the month-by-month grid for each metric,HELP-016.jpg
+HELP-017,How to Read the Agent Performance Page,The Supervisor Note card,"Highlight the Supervisor dropdown, Save Note, and Hide/Show Notes toggle",HELP-017.jpg
+HELP-018,How to Use the Attendance Page,The Attendance Entry grid,Highlight the Year and Month dropdowns at the top,HELP-018.jpg
+HELP-019,How to Use the Attendance Page,A single cell being edited,Show the code pop-up that appears when clicking one cell (no agents ticked),HELP-019.jpg
+HELP-020,How to Use the Attendance Page,Bulk mode in action,Show ticked agent checkboxes on the left and highlighted date columns,HELP-020.jpg
+HELP-021,How to Use the Attendance Page,The week header row,Point to a week header that selects the whole week,HELP-021.jpg
+HELP-022,How to Use the Attendance Page,The holiday panel,Point to "Apply to all agents" and "Apply to selected" buttons,HELP-022.jpg
+HELP-023,How to Use the Attendance Page,The bulk action buttons,Point to the red "Clear Selected Cells" button,HELP-023.jpg
+HELP-024,How to Manage Agents,The Agents list page,Highlight the Search box and Status filter,HELP-024.jpg
+HELP-025,How to Manage Agents,Top-right of the Agents page,Point to the "+ Add Agent" button,HELP-025.jpg
+HELP-026,How to Manage Agents,The agent profile pop-up (open it),"Show all fields: Name, Role, Reporting Supervisor, Hire Date, Go-Live Date, Employment End Date, Notes, Active",HELP-026.jpg
+HELP-027,How to Manage Agents,The agent profile pop-up,Point specifically to the Employment End Date field and its helper text,HELP-027.jpg
+HELP-028,How to Manage Agents,Bottom of a saved agent profile,Highlight the Team Assignments section with Add Team / Add,HELP-028.jpg
+HELP-029,How to Use Supervisor Notes,The Supervisor Note card on the Agent Performance page,"Show the full note card: text area, Supervisor dropdown, and Save Note button",HELP-029.jpg
+HELP-030,How to Use Supervisor Notes,The Supervisor dropdown inside the note card,Show the dropdown open with supervisor names listed,HELP-030.jpg
+HELP-031,How to Use Supervisor Notes,The Hide Notes / Show Notes toggle,Point to the toggle button at the top of the Supervisor Note card,HELP-031.jpg
+HELP-032,How to Use Supervisor Notes,The Admin Notes page (Metric Setup → Notes),"Show the full table: Agent, Month, Note, Created By columns and the + Add Note button",HELP-032.jpg
+HELP-033,How to Use Supervisor Notes,The Add/Edit Note pop-up,"All fields visible: Agent, Month, Note text area, Created By dropdown",HELP-033.jpg
+HELP-034,How to Manage Teams and Team Assignments,The Teams page listing all teams,"Show Team Name, Key, Display Order, Active columns",HELP-034.jpg
+HELP-035,How to Manage Teams and Team Assignments,Top of the Teams page,Point to the "+ Add Team" button,HELP-035.jpg
+HELP-036,How to Manage Teams and Team Assignments,The Add Team pop-up (open it),"All fields visible: Team Name, Key, Display Order, Active checkbox",HELP-036.jpg
+HELP-037,How to Manage Teams and Team Assignments,The Team Assignments page,Show the Agent and Team filter dropdowns and the assignments table,HELP-037.jpg
+HELP-038,How to Manage Teams and Team Assignments,The Add Assignment pop-up (open it),"All fields visible: Agent, Team, Start Month, End Month, Active checkbox",HELP-038.jpg
+HELP-039,How to Read the Attendance Summary Page,The full Attendance Summary page,Show the complete page including filter bar and the summary table,HELP-039.jpg
+HELP-040,How to Read the Attendance Summary Page,The Attendance Summary filter bar,Highlight the Month and Team selectors,HELP-040.jpg
+HELP-041,How to Read the Attendance Summary Page,The Attendance Summary table,"Highlight Agent, Scheduled Days, Available Days, and Attendance % columns — show colour-coded percentage values",HELP-041.jpg
