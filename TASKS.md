@@ -71,7 +71,7 @@
 | `[✅]` | APT-123 | Follow-up to APT-122 (June 26 still missing for Jovana/Mindy): Attendance Summary, dashboards' Attendance %, and both CSV exports now all compute from the raw saved records — no dependence on team-assignment date windows anywhere. Save now also verifies and shows a plain-English error naming any entry that failed to save. | Attendance | — | 3-Jul |
 | `[✅]` | APT-124 | Attendance Entry color coding per client key — each code gets its own cell color (P green, ILL red, PTO orange, H yellow, BRV purple, O pink, IT brown, PD blue) plus a color key legend above the grid | Attendance | — | 3-Jul |
 | `[✅]` | APT-125 | Attendance Entry % column rounds to the nearest whole number (.5 and up rounds up, below .5 rounds down) — was showing one decimal (client called this their APT-122) | Attendance | — | 7-Jul |
-| `[✓]` | APT-126 | Refreshing the browser on any page showed a 404 NOT_FOUND error — hosting now serves the app for every address so refresh and direct links work on all pages | All | — | 9-Jul |
+| `[✅]` | APT-126 | Refreshing the browser on any page showed a 404 NOT_FOUND error — hosting now serves the app for every address so refresh and direct links work on all pages | All | — | 9-Jul |
 
 ### M — 3–8 hours each
 
