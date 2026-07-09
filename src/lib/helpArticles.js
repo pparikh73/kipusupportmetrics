@@ -836,6 +836,85 @@ export const ARTICLES = [
       },
     ],
   },
+  // ─────────────────────────────────────────────────────────────────────────
+  {
+    id: 'metric-adjustments',
+    title: 'How to Use Metric Adjustments (Custom Goals & Exclusions)',
+    category: 'Daily Use',
+    summary:
+      'Give one agent a custom goal for a month (new hires, PIPs) or exclude a metric that shouldn\'t count against them (e.g. an unfair CSAT) — with a required reason and full tracking.',
+    blocks: [
+      { type: 'h2', text: 'What metric adjustments are for' },
+      {
+        type: 'p',
+        text:
+          'Team goals don\'t always fit an individual\'s situation. **Metric adjustments** let a manager make a per-agent exception for a single month, in two ways:',
+      },
+      {
+        type: 'list',
+        items: [
+          '**Custom goal** — a new hire or an agent on a PIP is measured against their own ramp-up goal instead of the team default (for example, 80% instead of 95%).',
+          '**Exclude a metric** — a result that wasn\'t the agent\'s fault (a bad CSAT on a mishandled ticket, a tech outage) is dropped from their score for that month.',
+        ],
+      },
+      {
+        type: 'callout',
+        variant: 'info',
+        text:
+          'An adjustment affects **only that agent, for that month**. Team goals and every other agent\'s scorecard are untouched.',
+      },
+
+      { type: 'h2', text: 'Making an adjustment — step by step' },
+      {
+        type: 'steps',
+        items: [
+          'Go to **Agent Performance** and select the team, agent, and month.',
+          'Find the metric you want to adjust — every row has an **Adjust** button on the right.',
+          'In the pop-up, choose **Custom goal** (enter the goal, and optionally a tolerance) or **Exclude this metric from the score this month**.',
+          'Type the **reason** — this is required, so the record always explains itself.',
+          'Pick your name under **Adjusted By** and click **Save Adjustment**.',
+        ],
+      },
+      { type: 'shot', id: 'HELP-042', caption: 'The Adjust button at the end of each metric row on Agent Performance.' },
+      { type: 'shot', id: 'HELP-043', caption: 'The Adjust pop-up with the custom goal and exclude options, reason, and Adjusted By.' },
+
+      { type: 'h2', text: 'What you\'ll see after saving' },
+      {
+        type: 'list',
+        items: [
+          'A **custom goal** shows a purple **custom goal** tag on the row, and On Track / Off Track is judged against the new goal.',
+          'An **excluded** metric turns grey with an **Excluded** label and drops out of the agent\'s Overall Rating.',
+          'Hover over the tag or the Excluded label to see the reason and who made the adjustment.',
+          'The **Overall Rating / On Track / Off Track** cards at the top update automatically.',
+        ],
+      },
+
+      { type: 'h2', text: 'Changing or removing an adjustment' },
+      {
+        type: 'p',
+        text:
+          'Open the same pop-up — the button reads **Edit** on an adjusted row. Change the details and save, or click **Remove Adjustment** to restore the team default.',
+      },
+
+      { type: 'h2', text: 'Tracking every adjustment' },
+      {
+        type: 'p',
+        text:
+          'Go to **Metric Setup → Notes**. Below the supervisor notes is a **Metric Adjustments** table listing every adjustment — agent, month, metric, what changed, the reason, and who made it. Use the Agent and Month filters to narrow it down.',
+      },
+      { type: 'shot', id: 'HELP-044', caption: 'The Metric Adjustments table on the Notes page.' },
+
+      { type: 'h2', text: 'Good to know' },
+      {
+        type: 'list',
+        items: [
+          'Adjustments apply **one month at a time** — for a 90-day PIP, set the custom goal on each of the three months.',
+          'Adjustments currently affect the **Monthly view** and that month\'s rating. The Quarterly / Half-Year / YTD tabs don\'t reflect them yet (planned as APT-128).',
+          'Behind the scenes the adjustment is stored with that agent\'s monthly note, so it travels with the month it belongs to.',
+        ],
+      },
+    ],
+  },
 ]
 
 // Master list of every screenshot placeholder — used to generate the CSV checklist
@@ -882,4 +961,7 @@ export const HELP_SCREENSHOTS = [
   { id: 'HELP-039', article: 'How to Read the Attendance Summary Page', shows: 'The full Attendance Summary page', highlight: 'Show the complete page including filter bar and the summary table' },
   { id: 'HELP-040', article: 'How to Read the Attendance Summary Page', shows: 'The Attendance Summary filter bar', highlight: 'Highlight the Month and Team selectors' },
   { id: 'HELP-041', article: 'How to Read the Attendance Summary Page', shows: 'The Attendance Summary table', highlight: 'Highlight Agent, Scheduled Days, Available Days, and Attendance % columns — show colour-coded percentage values' },
+  { id: 'HELP-042', article: 'How to Use Metric Adjustments (Custom Goals & Exclusions)', shows: 'A monthly scorecard row on Agent Performance', highlight: 'Point to the Adjust button at the end of the row' },
+  { id: 'HELP-043', article: 'How to Use Metric Adjustments (Custom Goals & Exclusions)', shows: 'The Adjust pop-up (open it on any metric)', highlight: 'All fields visible: Custom goal / Exclude options, Goal, Tolerance, Reason, Adjusted By' },
+  { id: 'HELP-044', article: 'How to Use Metric Adjustments (Custom Goals & Exclusions)', shows: 'Metric Setup → Notes page', highlight: 'Highlight the Metric Adjustments table below the Supervisor Notes section' },
 ]
