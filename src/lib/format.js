@@ -1,16 +1,17 @@
+// APT-129: every metric displays as a whole number (.5 and up rounds up)
 export function formatValue(value, unitType) {
   if (value === null || value === undefined) return '—'
   switch (unitType) {
     case 'percent':
-      return `${Number(value).toFixed(0)}%`
+      return `${Math.round(value)}%`
     case 'days':
-      return `${Number(value).toFixed(2)} days`
+      return `${Math.round(value)} days`
     case 'hours':
-      return `${Number(value).toFixed(2)} hrs`
+      return `${Math.round(value)} hrs`
     case 'count':
       return Math.round(value).toString()
     default:
-      return typeof value === 'number' ? Number(value).toFixed(2) : String(value)
+      return typeof value === 'number' ? Math.round(value).toString() : String(value)
   }
 }
 
