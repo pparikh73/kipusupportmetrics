@@ -325,7 +325,7 @@ export default function TeamDashboard() {
   const avgOnTrack = useMemo(() => {
     const vals = Object.values(agentRatings)
     if (!vals.length) return '—'
-    return (vals.reduce((s, r) => s + r.onTrack, 0) / vals.length).toFixed(1)
+    return String(Math.round(vals.reduce((s, r) => s + r.onTrack, 0) / vals.length))
   }, [agentRatings])
 
   const monthLabel = monthOptions.find((m) => m.value === month)?.label ?? month

@@ -144,7 +144,7 @@ export default function AttendanceSummary() {
                     <td>{r.scheduled_days ?? '—'}</td>
                     <td>{r.available_days ?? '—'}</td>
                     <td style={{ color: pctColor, fontWeight: 600 }}>
-                      {pct != null ? `${Number(pct).toFixed(1)}%` : '—'}
+                      {pct != null ? `${Math.round(pct)}%` : '—'}
                     </td>
                   </tr>
                 )
