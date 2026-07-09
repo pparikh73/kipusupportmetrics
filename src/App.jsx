@@ -28,6 +28,7 @@ export default function App() {
           <Route path="/admin/goals" element={<AdminGoals />} />
           <Route path="/admin/notes" element={<AdminNotes />} />
           <Route path="/help" element={<Help />} />
+          <Route path="/help/:articleId" element={<Help />} />
         </Routes>
       </Layout>
     </BrowserRouter>

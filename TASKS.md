@@ -72,6 +72,7 @@
 | `[✅]` | APT-124 | Attendance Entry color coding per client key — each code gets its own cell color (P green, ILL red, PTO orange, H yellow, BRV purple, O pink, IT brown, PD blue) plus a color key legend above the grid | Attendance | — | 3-Jul |
 | `[✅]` | APT-125 | Attendance Entry % column rounds to the nearest whole number (.5 and up rounds up, below .5 rounds down) — was showing one decimal (client called this their APT-122) | Attendance | — | 7-Jul |
 | `[✅]` | APT-126 | Refreshing the browser on any page showed a 404 NOT_FOUND error — hosting now serves the app for every address so refresh and direct links work on all pages | All | — | 9-Jul |
+| `[✓]` | APT-127 | Each Help article now has its own web address (/help/article-name) — opening an article updates the URL, so copying and sharing the link takes the recipient straight to that article instead of the Help home page | Help | — | 9-Jul |
 
 ### M — 3–8 hours each
 
@@ -163,6 +164,7 @@ These tasks are about confirming data accuracy and signing off on the tool with 
 | APT-124 | Attendance Entry → a color key row should appear above the grid (one colored chip per code). Cells should be colored by their code per the client's key: P green, ILL red, PTO orange, H yellow, BRV purple, O pink, IT brown, PD blue. Codes not in the key keep the old green/yellow/lavender category colors. |
 | APT-125 | Attendance Entry → the **%** column at the end of each agent row should show whole numbers only (e.g. 86% not 85.7%). An agent with 17 of 20 days available should show 85%; one with 17.5/20-style fractions rounds normally (.5 up). |
 | APT-126 | On STAGING: open any page (e.g. Help, Attendance Entry) and hit browser refresh — the page should reload normally instead of showing "404 NOT_FOUND". Also try pasting a deep address directly into a new tab. |
+| APT-127 | On STAGING: Help & Playbook → open any article → the address bar should change to /help/<article-name>. Copy that URL, open it in a new tab (or send to a teammate) → it should open that exact article. The "← Back to Help" button should return to the article list, and browser back/forward should work naturally. |
 | APT-88 | Agent Performance → pick an agent + month → each metric row has an **Adjust** button. (1) Exclude: pick a metric → Exclude → give a reason → Save → row greys out, says "Excluded", overall rating recalculates without it. (2) Custom goal: pick a metric → set e.g. goal 80 → Save → Goal column shows 80, purple "custom goal" tag appears, status recalculates. Hover the tag/Excluded text to see reason + supervisor. Refresh the page — adjustments must persist. Check Admin > Notes: the agent's note shows the adjustments block. Also verify the supervisor note itself still saves/edits normally. |
 
 ---
