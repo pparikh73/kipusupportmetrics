@@ -73,6 +73,7 @@
 | `[✅]` | APT-125 | Attendance Entry % column rounds to the nearest whole number (.5 and up rounds up, below .5 rounds down) — was showing one decimal (client called this their APT-122) | Attendance | — | 7-Jul |
 | `[✅]` | APT-126 | Refreshing the browser on any page showed a 404 NOT_FOUND error — hosting now serves the app for every address so refresh and direct links work on all pages | All | — | 9-Jul |
 | `[✅]` | APT-127 | Each Help article now has its own web address (/help/article-name) — opening an article updates the URL, so copying and sharing the link takes the recipient straight to that article instead of the Help home page | Help | — | 9-Jul |
+| `[ ]` | APT-128 | Extend metric adjustments (APT-88) to the rollup views — Quarterly, Half-Year, YTD, and Trend tabs should honor per-agent custom goals and exclusions from each month (requires loading the whole year's adjustments, then applying them to the rollup and trend calculations) | Agent Perf | — | — |
 
 ### M — 3–8 hours each
 
