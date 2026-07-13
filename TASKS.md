@@ -146,6 +146,7 @@ These tasks are about confirming data accuracy and signing off on the tool with 
 |-----|---------------|-------------|---------|
 | APT-46 | Tolerance not displaying (fixed ✓); Start/End Month fields confusing (replaced with date pickers ✓); goal values in DB may still be incorrect — needs Angelique to verify against team scorecards (Billing, RCM, CRM spreadsheets shared 12-Jun) | Tolerance display + date pickers pushed; dev team has access to scorecards | Pending data verification |
 | APT-76 | Open question: does "merge" mean remove the Scored/Additional split entirely, or just combine into one section? Needs Angelique to clarify | Pending clarification | — |
+| — | June metrics missing for Mindy Sylvester & Jovana (10-Jul) — root cause: their Go-Live Date and team assignment Start Date were June 15, so the database reports treated June as before their start. NOTE for future mid-month hires: reports only include months on/after both dates; set them to the 1st of the month if the whole month should count, and use the Adjust button (APT-88) to soften goals for partial months. | Client set Go-Live + assignment Start to 01-Jun-2026 via the admin pages — no code change needed | Confirmed working 10-Jul |
 
 ---
 
