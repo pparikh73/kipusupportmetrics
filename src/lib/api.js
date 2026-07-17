@@ -246,7 +246,14 @@ async function overlayAttendance(rows, { month, year, agentId, agentIds, groupId
       if (!a) return r
       live.delete(key)
       const actual = Number(a.attendance_pct)
-      return { ...r, actual_value: actual, metric_status: attendanceStatus(actual, r) }
+      return {
+        ...r,
+        actual_value: actual,
+        metric_status: attendanceStatus(actual, r),
+        // Day counts let rollups weight by days instead of averaging month %s
+        att_scheduled_days: a.scheduled_days,
+        att_available_days: a.available_days,
+      }
     })
 
     // Attendance saved for agent/months the scorecard has no row for yet
@@ -271,6 +278,8 @@ async function overlayAttendance(rows, { month, year, agentId, agentIds, groupId
         goal_value: null,
         tolerance_value: null,
         metric_status: 'no_target',
+        att_scheduled_days: a.scheduled_days,
+        att_available_days: a.available_days,
       })
     }
     return patched
