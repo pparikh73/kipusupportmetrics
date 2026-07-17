@@ -1,10 +1,9 @@
 import { useState, useEffect, useMemo, useCallback } from 'react'
 import {
-  getTeams, getAgents, getAllAgents,
+  getTeams, getAgents,
   getAttendanceCodes, getAttendanceFacts,
   upsertAttendance, deleteAttendance,
 } from '../lib/api'
-import { downloadCsv } from '../lib/csv'
 
 import Modal from '../components/Modal'
 
@@ -156,7 +155,6 @@ export default function AttendanceEntry() {
 
   const [loading, setLoading] = useState(false)
   const [saving, setSaving]   = useState(false)
-  const [exporting, setExporting] = useState(false)
   const [error, setError]     = useState('')
   const [saveMsg, setSaveMsg] = useState('')
 
@@ -241,7 +239,7 @@ export default function AttendanceEntry() {
     } finally {
       setLoading(false)
     }
-  }, [month, groupId])
+  }, [month])
 
   useEffect(() => { loadAttendance() }, [loadAttendance])
 
@@ -264,33 +262,6 @@ export default function AttendanceEntry() {
     if (sched === 0) return null
     // Round to the nearest whole number (.5 and up rounds up)
     return String(Math.round(avail / sched * 100))
-  }
-
-  // ── CSV export — every saved attendance record, all months and teams ────────
-
-  async function exportCsv() {
-    setExporting(true)
-    setError('')
-    try {
-      const [rows, allAgents] = await Promise.all([getAttendanceFacts(), getAllAgents()])
-      const nameById = {}
-      allAgents.forEach((a) => { nameById[a.id] = a.agent_name })
-      const sorted = [...rows].sort((a, b) =>
-        (nameById[a.agent_id] ?? '').localeCompare(nameById[b.agent_id] ?? '') ||
-        String(a.attendance_date).localeCompare(String(b.attendance_date)))
-      downloadCsv(
-        `attendance-daily-${new Date().toISOString().slice(0, 10)}.csv`,
-        ['Agent', 'Date', 'Code', 'Code Name'],
-        sorted.map((r) => {
-          const code = codesById[r.attendance_code_id]
-          return [nameById[r.agent_id] ?? r.agent_id, r.attendance_date, code?.code ?? '', code?.code_name ?? '']
-        })
-      )
-    } catch (e) {
-      setError(e.message)
-    } finally {
-      setExporting(false)
-    }
   }
 
   // ── Bulk actions ────────────────────────────────────────────────────────────
@@ -534,9 +505,6 @@ export default function AttendanceEntry() {
               {holidays.length}
             </span>
           )}
-        </button>
-        <button className="btn btn-secondary" onClick={exportCsv} disabled={exporting}>
-          {exporting ? 'Exporting…' : 'Export CSV'}
         </button>
       </div>
 
