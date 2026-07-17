@@ -1,10 +1,9 @@
-import { useState, useEffect, useMemo, useCallback, useRef } from 'react'
+import { useState, useEffect, useMemo, useCallback } from 'react'
 import {
-  getTeams, getAgents, getAllAgents,
+  getTeams, getAgents,
   getAttendanceCodes, getAttendanceFacts,
   upsertAttendance, deleteAttendance,
 } from '../lib/api'
-import { downloadXlsx, readTableFile, normalizeDate } from '../lib/csv'
 
 import Modal from '../components/Modal'
 
@@ -156,9 +155,6 @@ export default function AttendanceEntry() {
 
   const [loading, setLoading] = useState(false)
   const [saving, setSaving]   = useState(false)
-  const [exporting, setExporting] = useState(false)
-  const [importing, setImporting] = useState(false)
-  const importFileRef = useRef(null)
   const [error, setError]     = useState('')
   const [saveMsg, setSaveMsg] = useState('')
 
@@ -266,93 +262,6 @@ export default function AttendanceEntry() {
     if (sched === 0) return null
     // Round to the nearest whole number (.5 and up rounds up)
     return String(Math.round(avail / sched * 100))
-  }
-
-  // ── Excel export — every saved attendance record, all months and teams ──────
-
-  async function exportCsv() {
-    setExporting(true)
-    setError('')
-    try {
-      const [rows, allAgents] = await Promise.all([getAttendanceFacts(), getAllAgents()])
-      const nameById = {}
-      allAgents.forEach((a) => { nameById[a.id] = a.agent_name })
-      const sorted = [...rows].sort((a, b) =>
-        (nameById[a.agent_id] ?? '').localeCompare(nameById[b.agent_id] ?? '') ||
-        String(a.attendance_date).localeCompare(String(b.attendance_date)))
-      await downloadXlsx(
-        `attendance-daily-${new Date().toISOString().slice(0, 10)}.xlsx`,
-        ['Agent', 'Date', 'Code', 'Code Name'],
-        sorted.map((r) => {
-          const code = codesById[r.attendance_code_id]
-          return [nameById[r.agent_id] ?? r.agent_id, r.attendance_date, code?.code ?? '', code?.code_name ?? '']
-        }),
-        'Attendance'
-      )
-    } catch (e) {
-      setError(e.message)
-    } finally {
-      setExporting(false)
-    }
-  }
-
-  // ── Import — bulk-load attendance from a CSV or Excel file (Agent, Date, Code)
-
-  async function importCsvFile(file) {
-    setImporting(true)
-    setError('')
-    try {
-      const lines = await readTableFile(file)
-      const header = (lines[0] ?? []).join(',').toLowerCase()
-      if (!header.includes('agent') || !header.includes('date') || !header.includes('code')) {
-        throw new Error('The file must have columns: Agent, Date, Code (CSV or Excel)')
-      }
-      const allAgents = await getAllAgents()
-      const idByName = {}
-      allAgents.forEach((a) => { idByName[String(a.agent_name).trim().toLowerCase()] = a.id })
-      const codeIdByCode = {}
-      codes.forEach((c) => { codeIdByCode[String(c.code).toUpperCase()] = c.id })
-
-      const rows = []
-      const unknownAgents = new Set()
-      const unknownCodes = new Set()
-      for (const parts of lines.slice(1)) {
-        if (parts.length < 3) continue
-        const [name, rawDate, codeStr] = parts
-        const date = normalizeDate(rawDate)
-        if (!name || !date) continue
-        const agentId = idByName[name.toLowerCase()]
-        if (!agentId) { unknownAgents.add(name); continue }
-        const codeId = codeIdByCode[String(codeStr).toUpperCase()]
-        if (!codeId) { if (codeStr) unknownCodes.add(codeStr); continue }
-        rows.push({ attendance_date: date, agent_id: agentId, attendance_code_id: codeId, source: 'import', notes: null })
-      }
-      if (!rows.length) throw new Error('No importable rows found in the file.')
-
-      const dates = rows.map((r) => r.attendance_date).sort()
-      const ok = window.confirm(
-        `Import ${rows.length} attendance entries (${dates[0]} to ${dates[dates.length - 1]})?\n\n` +
-        'Existing entries for the same agent and day will be overwritten.'
-      )
-      if (!ok) return
-
-      let saved = 0
-      for (let i = 0; i < rows.length; i += 400) {
-        const res = await upsertAttendance(rows.slice(i, i + 400))
-        saved += res?.length ?? 0
-      }
-      setSaveMsg(`Imported ${saved} attendance entries.`)
-      setTimeout(() => setSaveMsg(''), 8000)
-      const skipped = []
-      if (unknownAgents.size) skipped.push(`agent names not found in the system: ${[...unknownAgents].join(', ')}`)
-      if (unknownCodes.size)  skipped.push(`codes not found: ${[...unknownCodes].join(', ')}`)
-      if (skipped.length) setError(`Some rows were skipped — ${skipped.join('; ')}`)
-      await loadAttendance()
-    } catch (e) {
-      setError(e.message)
-    } finally {
-      setImporting(false)
-    }
   }
 
   // ── Bulk actions ────────────────────────────────────────────────────────────
@@ -596,19 +505,6 @@ export default function AttendanceEntry() {
               {holidays.length}
             </span>
           )}
-        </button>
-        <button className="btn btn-secondary" onClick={exportCsv} disabled={exporting}>
-          {exporting ? 'Exporting…' : 'Export Excel'}
-        </button>
-        <input
-          ref={importFileRef}
-          type="file"
-          accept=".csv,.xlsx,.xls"
-          style={{ display: 'none' }}
-          onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; if (f) importCsvFile(f) }}
-        />
-        <button className="btn btn-secondary" onClick={() => importFileRef.current?.click()} disabled={importing || saving}>
-          {importing ? 'Importing…' : 'Import File'}
         </button>
       </div>
 
