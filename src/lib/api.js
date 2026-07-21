@@ -246,7 +246,14 @@ async function overlayAttendance(rows, { month, year, agentId, agentIds, groupId
       if (!a) return r
       live.delete(key)
       const actual = Number(a.attendance_pct)
-      return { ...r, actual_value: actual, metric_status: attendanceStatus(actual, r) }
+      return {
+        ...r,
+        actual_value: actual,
+        metric_status: attendanceStatus(actual, r),
+        // Day counts let rollups weight by days instead of averaging month %s
+        att_scheduled_days: a.scheduled_days,
+        att_available_days: a.available_days,
+      }
     })
 
     // Attendance saved for agent/months the scorecard has no row for yet
@@ -271,6 +278,8 @@ async function overlayAttendance(rows, { month, year, agentId, agentIds, groupId
         goal_value: null,
         tolerance_value: null,
         metric_status: 'no_target',
+        att_scheduled_days: a.scheduled_days,
+        att_available_days: a.available_days,
       })
     }
     return patched
@@ -460,30 +469,35 @@ export async function getAttendanceFacts({ month } = {}) {
 // Monthly attendance rollup computed from the fact table + codes, so results
 // never depend on team-assignment date windows (unlike the monthly view).
 export async function getAttendanceRollup({ month, year } = {}) {
-  let query = supabase.from('metrics_fact_attendance_daily').select('*')
+  // A full year of attendance for all agents exceeds PostgREST's 1000-row
+  // default, so page through every matching fact row explicitly.
+  let start, end
   if (month) {
     const first = toDateParam(month)
     const [y, m] = first.split('-').map(Number)
     const lastDay = new Date(y, m, 0).getDate()
-    query = query
-      .gte('attendance_date', first)
-      .lte('attendance_date', `${first.slice(0, 8)}${String(lastDay).padStart(2, '0')}`)
+    start = first
+    end = `${first.slice(0, 8)}${String(lastDay).padStart(2, '0')}`
+  } else if (year) {
+    start = `${year}-01-01`
+    end = `${year}-12-31`
   }
-  if (year) {
-    query = query
-      .gte('attendance_date', `${year}-01-01`)
-      .lte('attendance_date', `${year}-12-31`)
+  const facts = []
+  const PAGE = 1000
+  for (let from = 0; ; from += PAGE) {
+    let q = supabase.from('metrics_fact_attendance_daily').select('*')
+    if (start) q = q.gte('attendance_date', start).lte('attendance_date', end)
+    const { data, error } = await q.range(from, from + PAGE - 1)
+    if (error) throw error
+    facts.push(...(data ?? []))
+    if (!data || data.length < PAGE) break
   }
-  const [factsRes, codesRes] = await Promise.all([
-    query,
-    supabase.from('metrics_cfg_attendance_codes').select('*'),
-  ])
-  if (factsRes.error) throw factsRes.error
-  if (codesRes.error) throw codesRes.error
+  const { data: codesData, error: codesErr } = await supabase.from('metrics_cfg_attendance_codes').select('*')
+  if (codesErr) throw codesErr
   const codeById = {}
-  codesRes.data.forEach((c) => { codeById[c.id] = c })
+  codesData.forEach((c) => { codeById[c.id] = c })
   const byKey = {}
-  factsRes.data.forEach((r) => {
+  facts.forEach((r) => {
     const code = codeById[r.attendance_code_id]
     if (!code) return
     const monthKey = String(r.attendance_date).slice(0, 7)

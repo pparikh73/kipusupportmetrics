@@ -48,6 +48,13 @@ function metricMonthNum(metricMonth) {
 function computePeriodActual(rows, unitType) {
   const withData = rows.filter((r) => r.actual_value != null)
   if (!withData.length) return null
+  // Attendance rows carry day counts — weight by days worked, not by month
+  const dayRows = withData.filter((r) => r.att_scheduled_days != null)
+  if (dayRows.length === withData.length) {
+    const sched = dayRows.reduce((s, r) => s + r.att_scheduled_days, 0)
+    const avail = dayRows.reduce((s, r) => s + r.att_available_days, 0)
+    return sched ? (avail / sched) * 100 : null
+  }
   const sum = withData.reduce((s, r) => s + r.actual_value, 0)
   return unitType === 'count' ? sum : sum / withData.length
 }
