@@ -4,6 +4,7 @@ import {
   getTeams, getAgents, getAllAgents,
   getAllMetricDefinitions, getScorecard, getScorecardYear,
   getSummary, getAgentMonthNote, upsertAgentMonthNote, getActiveGoals,
+  getAgentTeamAssignments,
 } from '../lib/api'
 import { formatValue, statusLabel, statusClass, ratingClass, computeRating } from '../lib/format'
 import Modal from '../components/Modal'
@@ -131,6 +132,23 @@ function applyHistoricalGoals(rows, histGoals) {
       : row.metric_status
     return { ...row, goal_value, tolerance_value, metric_status }
   })
+}
+
+// APT-135: "4 months in current role" from a hire date
+function formatTenure(fromDate) {
+  if (!fromDate) return null
+  const start = new Date(fromDate)
+  if (isNaN(start)) return null
+  const now = new Date()
+  let months = (now.getFullYear() - start.getFullYear()) * 12 + (now.getMonth() - start.getMonth())
+  if (now.getDate() < start.getDate()) months -= 1
+  if (months < 0) return 'Starts soon'
+  if (months < 1) return 'Less than a month in current role'
+  if (months < 12) return `${months} month${months === 1 ? '' : 's'} in current role`
+  const years = Math.floor(months / 12)
+  const rem = months % 12
+  const y = `${years} year${years === 1 ? '' : 's'}`
+  return rem ? `${y} ${rem} month${rem === 1 ? '' : 's'} in current role` : `${y} in current role`
 }
 
 // ── Sub-components ────────────────────────────────────────────────────────────
@@ -364,6 +382,9 @@ export default function AgentPerformance() {
   const [supervisors, setSupervisors] = useState([])
   const [notesVisible, setNotesVisible] = useState(true)
 
+  // APT-135: Team assignments for the selected agent (role/tenure come from the agent row)
+  const [agentTeams, setAgentTeams] = useState([])
+
   // APT-88: Per-metric adjustments for the selected agent+month
   const [adjustments, setAdjustments] = useState({})
   const [adjustRow, setAdjustRow] = useState(null)
@@ -437,6 +458,14 @@ export default function AgentPerformance() {
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false))
   }, [agentId, year, selMonth, teamId])
+
+  // APT-135: Load the selected agent's team assignments for the context strip
+  useEffect(() => {
+    if (!agentId) { setAgentTeams([]); return }
+    getAgentTeamAssignments(Number(agentId))
+      .then((rows) => setAgentTeams(rows.filter((r) => r.active !== false)))
+      .catch(() => setAgentTeams([]))
+  }, [agentId])
 
   // Load year data for rollups
   useEffect(() => {
@@ -514,6 +543,17 @@ export default function AgentPerformance() {
   }), [mergedRows, adjustments])
 
   const selectedMonthLabel = MONTH_OPTIONS.find((m) => m.value === selMonth)?.label ?? selMonth
+
+  // APT-135: Role / team / tenure context for the selected agent
+  const selectedAgent = useMemo(
+    () => agents.find((a) => String(a.id) === String(agentId)) ?? null,
+    [agents, agentId]
+  )
+  const agentTeamNames = useMemo(() => {
+    const names = agentTeams.map((t) => t.metrics_groups?.group_name).filter(Boolean)
+    return [...new Set(names)]
+  }, [agentTeams])
+  const agentTenure = formatTenure(selectedAgent?.hire_date)
 
   // APT-36: Compute rating from scorecard rows (counts_toward_score metrics with data + goal only)
   const computedRating = useMemo(() => computeRating(allRows), [allRows])
@@ -613,6 +653,28 @@ export default function AgentPerformance() {
 
       {agentId && !loading && (
         <>
+          {/* APT-135: Agent context — role, team, tenure */}
+          <div className="ctx-card">
+            <div className="ctx-item">
+              <div className="ctx-label">Role</div>
+              <div className={`ctx-value${selectedAgent?.role ? '' : ' ctx-empty'}`}>
+                {selectedAgent?.role || 'Not set'}
+              </div>
+            </div>
+            <div className="ctx-item">
+              <div className="ctx-label">Team</div>
+              <div className={`ctx-value${agentTeamNames.length ? '' : ' ctx-empty'}`}>
+                {agentTeamNames.length ? agentTeamNames.join(' · ') : 'No team assigned'}
+              </div>
+            </div>
+            <div className="ctx-item">
+              <div className="ctx-label">Tenure</div>
+              <div className={`ctx-value${agentTenure ? '' : ' ctx-empty'}`}>
+                {agentTenure ?? 'Hire date not set'}
+              </div>
+            </div>
+          </div>
+
           {/* Summary cards */}
           <div className="cards-row">
             <div className="stat-card">
