@@ -75,6 +75,11 @@ This is the **Kipu Support Metrics** app — an internal tool used by Kipu's sup
 
 APTs are tasks tracked in `TASKS.md` at the root of this repo. Every feature request or change becomes an APT.
 
+**Phase 2 is active (since 21-Jul-2026).** Phase 1 closed at APT-135. Every new
+task goes in the "Phase 2 — Active Work" section at the top of `TASKS.md`,
+numbered from **APT-136** up, tagged `P2`. Never add new work to the Phase 1
+tables — they are a historical record.
+
 **Status meanings:**
 - `[ ]` — Not started
 - `[~]` — In progress

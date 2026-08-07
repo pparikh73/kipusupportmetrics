@@ -10,7 +10,23 @@ and where things stand, without needing the original chat conversations._
 - `TASKS.md` — the live task tracker (the single source of truth for status)
 - `help-screenshots.csv` — the checklist of Help-article screenshots still to be taken
 
-_Last updated: 2026-07-02_
+_Last updated: 2026-07-21_
+
+---
+
+## 0. ⚠️ Phase status — READ FIRST
+
+**Phase 1: complete and closed (21-Jul-2026).** It ran from the original APT
+backlog through APT-135 and delivered the scorecards, Team Dashboard, attendance
+system, Help & Playbook, metric adjustments, and the reporting fixes.
+
+**Phase 2: active from 21-Jul-2026.** Every task raised from that date onward is
+Phase 2 work, numbered from **APT-136** up, and logged in the "Phase 2 — Active
+Work" section at the top of `TASKS.md` with a `P2` tag. Do not add new work to the
+Phase 1 tables — they are a historical record now.
+
+Items still blocked or parked from Phase 1 (see section 5 and 6) remain open; if
+Phase 2 picks one up, note that on its existing row rather than renumbering it.
 
 ---
 

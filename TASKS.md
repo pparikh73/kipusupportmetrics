@@ -1,5 +1,29 @@
 # APT Task Tracker — Kipu Support Metrics
 
+> ## ⚠️ PHASE 2 IS ACTIVE (started 21-Jul-2026)
+> **Phase 1 is complete and closed.** Everything in the "Phase 1" sections below is
+> historical record — do not add new work there.
+>
+> **Every new task from 21-Jul-2026 onward belongs to Phase 2** and goes in the
+> [Phase 2 — Active Work](#phase-2--active-work) section directly below, numbered
+> from **APT-136** up. Tag each one **`P2`** in the Phase column.
+>
+> Phase 1 ended at APT-135. Anything still open from Phase 1 (blocked or parked
+> items) stays where it is until it's picked up — if it is picked up in Phase 2,
+> note that in its row rather than moving it.
+
+## Phase 2 — Active Work
+
+_Started 21-Jul-2026. New tasks go here, numbered from APT-136._
+
+| Status | Phase | APT | Task | Area | Assignee | Due |
+|--------|-------|-----|------|------|----------|-----|
+| | P2 | — | _(no Phase 2 tasks logged yet)_ | — | — | — |
+
+---
+
+# Phase 1 — Completed 21-Jul-2026 (historical record)
+
 ## Status Key
 | Symbol | Meaning |
 |--------|---------|
