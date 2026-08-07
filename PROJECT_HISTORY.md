@@ -25,8 +25,11 @@ Phase 2 work, numbered from **APT-136** up, and logged in the "Phase 2 — Activ
 Work" section at the top of `TASKS.md` with a `P2` tag. Do not add new work to the
 Phase 1 tables — they are a historical record now.
 
-Items still blocked or parked from Phase 1 (see section 5 and 6) remain open; if
-Phase 2 picks one up, note that on its existing row rather than renumbering it.
+Every task still open when Phase 1 closed (to-do, in progress, blocked, parked, or
+awaiting test) was **carried over into the Phase 2 list on 21-Jul-2026 with its
+original APT number** — including APT-117 (import/export, parked), APT-128,
+APT-130, and APT-131. The Phase 2 section of `TASKS.md` is therefore the single
+source of truth for all live work; the Phase 1 tables hold completed items only.
 
 ---
 

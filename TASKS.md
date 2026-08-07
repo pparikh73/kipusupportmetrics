@@ -8,17 +8,50 @@
 > [Phase 2 — Active Work](#phase-2--active-work) section directly below, numbered
 > from **APT-136** up. Tag each one **`P2`** in the Phase column.
 >
-> Phase 1 ended at APT-135. Anything still open from Phase 1 (blocked or parked
-> items) stays where it is until it's picked up — if it is picked up in Phase 2,
-> note that in its row rather than moving it.
+> Phase 1 ended at APT-135. Every task still open at that point (to-do, in
+> progress, blocked, parked, or awaiting test) was **carried over into the Phase 2
+> list below on 21-Jul-2026, keeping its original APT number** — so the Phase 2
+> section is the single source of truth for all live work. The Phase 1 tables
+> underneath now contain only completed items.
 
 ## Phase 2 — Active Work
 
-_Started 21-Jul-2026. New tasks go here, numbered from APT-136._
+_Started 21-Jul-2026. New tasks are numbered from **APT-136**. Rows below the divider
+were still open when Phase 1 closed and were carried over on 21-Jul-2026 with their
+original APT numbers._
 
 | Status | Phase | APT | Task | Area | Assignee | Due |
 |--------|-------|-----|------|------|----------|-----|
-| | P2 | — | _(no Phase 2 tasks logged yet)_ | — | — | — |
+| | | | **↓ Carried over from Phase 1 — same APT numbers kept ↓** | | | |
+| `[ ]` | P2 | APT-31 | Show goal, actual, tolerance, and status for each metric | Agent Perf | — | — |
+| `[B]` | P2 | APT-39 | Add AI performance summary to the 1:1 view — Blocked: waiting for Angelique to confirm final description; should highlight strengths, risks, and coaching suggestions; must adapt when supervisor notes explain an exception | Agent Perf | Chad | 1-Jun |
+| `[ ]` | P2 | APT-40 | Show goal, actual, tolerance, and status for each metric | Agent Perf | — | — |
+| `[ ]` | P2 | APT-44 | Show overall rating in the 1:1 view header | Team Dashboard | — | — |
+| `[ ]` | P2 | APT-45 | Add AI performance summary to the 1:1 view | Team Dashboard | — | — |
+| `[~]` | P2 | APT-46 | Show goal, actual, tolerance, and status for each metric — in progress; dev team has access to team goal spreadsheets (Billing, RCM, CRM) shared 12-Jun; goal values being corrected | Team Dashboard | Angelique | 1-Jun |
+| `[ ]` | P2 | APT-58 | Add a simplified 1:1 mode | Agent Perf | — | — |
+| `[B]` | P2 | APT-63 | Bring back the trending data view — Blocked: waiting for client input on (1) how to define "maintaining" for % vs. absolute value metrics; (2) whether trend indicators compare to previous month or current month; (3) how to handle goals that change mid-period | Agent Perf | Chad | 1-Jun |
+| `[ ]` | P2 | APT-64 | Add team-first selection with recalculation | Team Dashboard | — | — |
+| `[ ]` | P2 | APT-68 | Show the rating distribution | Team Dashboard | Chad | 1-Jun |
+| `[ ]` | P2 | APT-72 | Add active/inactive toggle for agents | Admin | — | — |
+| `[✓]` | P2 | APT-81 | Show correct historical goal per month. Implemented via frontend overlay: `getActiveGoals()` queries goals filtered by date range; now supports day-level precision (not just month and year). No Supabase view change needed. _(Size: L)_ _(DB: Frontend overlay — no schema change)_ | Goals | Chad | TBD |
+| `[B]` | P2 | APT-83 | Add an All Months bulk option — Blocked: waiting for Angelique to clarify which section this applies to and what the bulk activity is | Attendance | Chad | 1-Jun |
+| `[✓]` | P2 | APT-84 | Allow bulk holiday application — holiday panel now has a code dropdown (no more hardcoded H/HOL); "Apply to selected" always visible (greyed when no agents checked); "Apply to all N agents" always available | Attendance | Chad | 1-Jun |
+| `[✓]` | P2 | APT-85 | Fix bulk apply to selected agents — cell click now toggles date selection when agents are checked; added "Clear Selected Cells" bulk button; hint shown when no dates selected yet | Attendance | Chad | 1-Jun |
+| `[ ]` | P2 | APT-89 | Add a notes field to the agent view | Agent Perf | Chad | 1-Jun |
+| `[ ]` | P2 | APT-90 | Add public/private toggle to notes _(Size: S)_ _(DB: Add `is_private` bool to `metrics_agent_monthly_notes`)_ | Notes | Chad | 1-Jun |
+| `[✓]` | P2 | APT-91* | Auto-fill Created By (supervisor dropdown; no login system) _(Size: S)_ _(DB: Add `created_by` to `metrics_agent_monthly_notes`)_ | Notes | Chad | 29-May |
+| `[B]` | P2 | APT-92 | Have the AI reference supervisor notes — Blocked: may overlap with APT-39/APT-63; waiting for Angelique to confirm if this is a separate deliverable or covered by those tasks | Notes | Chad | 1-Jun |
+| `[ ]` | P2 | APT-93 | Reconcile data v2 after fixes | QA | Angelique | 1-Jun |
+| `[B]` | P2 | APT-94 | Verify tolerances match the Manager Guide — Blocked: dev team needs access to the Manager Guide Confluence page; Chad to grant access | QA | Angelique | 1-Jun |
+| `[ ]` | P2 | APT-95 | Verify the rating calculation | QA | Angelique | 1-Jun |
+| `[ ]` | P2 | APT-96 | Walk through the tool with supervisors | QA | Angelique | 18-Jun |
+| `[✓]` | P2 | APT-110 | Attendance Entry — fix bulk holiday application and apply-to-selected agents (umbrella for APT-84/APT-85); walkthrough video recorded 12-Jun | Attendance | Chad | 15-Jun |
+| `[✓]` | P2 | APT-114 | Fix error when saving notes ("Could not find the 'created_by' column") — graceful fallback deployed; full fix requires Supabase admin to run: `ALTER TABLE metrics_agent_monthly_notes ADD COLUMN IF NOT EXISTS created_by text;` | Notes | Chad | 15-Jun |
+| `[✓]` | P2 | APT-117 | Assistance filling in attendance for agents Jan–Apr 2026 — client's Excel tracker converted to a clean import file (1,180 entries, 18 agents); new **Import File** button on Attendance Entry bulk-loads CSV or Excel (.xlsx) with a confirmation step; exports on both attendance pages now produce Excel files. **11-Jul: Import/Export buttons REMOVED from both attendance pages on staging by client request (see APT-133) — this feature was never published to live.** | Attendance | — | 7-Jul |
+| `[ ]` | P2 | APT-128 | Extend metric adjustments (APT-88) to the rollup views — Quarterly, Half-Year, YTD, and Trend tabs should honor per-agent custom goals and exclusions from each month (requires loading the whole year's adjustments, then applying them to the rollup and trend calculations) | Agent Perf | — | — |
+| `[B]` | P2 | APT-130 | Mid-month starters should count for the whole month — agents whose Go-Live Date or team assignment Start Date falls on ANY day of a month should show that month's metrics (today the reports exclude the month unless the dates are on the 1st). Blocked: requires the Supabase admin to update the scorecard/summary/trend views to compare by month, not exact date — SQL request drafted 10-Jul and given to the client to forward. _(Size: S)_ _(DB: Update `metrics_vw_ab_scorecard` / `_summary` / `_trends` view definitions (month-granular date comparison))_ | Agent Perf / Team | — | — |
+| `[B]` | P2 | APT-131 | Weekly performance trend on Agent Performance for the selected month — columns Week 1, Week 2, … (weeks run Monday–Sunday), each metric's weekly actual vs. goal with On/Off Track like Monthly (no tolerance column, no Adjust button); only weeks with real data show. Blocked/PARKED 10-Jul: client says weekly data now exists in the database, but we still need the exact table/view name + columns (and anon-key read access confirmed) from the data team before building. Build on staging first when unblocked. _(Size: M)_ | Agent Perf | — | — |
 
 ---
 
@@ -63,32 +96,21 @@ _Started 21-Jul-2026. New tasks go here, numbered from APT-136._
 | Status | APT | Task | Area | Assignee | Due |
 |--------|-----|------|------|----------|-----|
 | `[✅]` | APT-38 | Show overall rating in the 1:1 view header | Agent Perf | Angelique | 29-May |
-| `[ ]` | APT-40 | Show goal, actual, tolerance, and status for each metric | Agent Perf | — | — |
-| `[ ]` | APT-31 | Show goal, actual, tolerance, and status for each metric | Agent Perf | — | — |
-| `[ ]` | APT-44 | Show overall rating in the 1:1 view header | Team Dashboard | — | — |
-| `[~]` | APT-46 | Show goal, actual, tolerance, and status for each metric — in progress; dev team has access to team goal spreadsheets (Billing, RCM, CRM) shared 12-Jun; goal values being corrected | Team Dashboard | Angelique | 1-Jun |
 | `[✅]` | APT-60 | Make the left panel collapsible | All | Angelique | 29-May |
 | `[✅]` | APT-61 | Keep filters persistent across tabs (team, agent, month, year) | All | Angelique | 29-May |
 | `[✅]` | APT-62 | Use the full screen width — RESOLVED 8-Jul per client feedback: the full-width experiment left a large empty gap between the Metric column and the data columns, so Trend (Agent Perf) and the Team Dashboard metric tables are back to compact layout matching Quarterly/Half-Year. Leaderboard stays full width. | All | Chad | 8-Jul |
-| `[ ]` | APT-68 | Show the rating distribution | Team Dashboard | Chad | 1-Jun |
 | `[✅]` | APT-69 | Fix supervisors showing under Leadership — role label renamed to "Supervisors" | Team Dashboard | Chad | 1-Jun |
 | `[✅]` | APT-70 | Clean up the quarterly view (dropdown, separators) | Team Dashboard | Angelique | 29-May |
-| `[ ]` | APT-72 | Add active/inactive toggle for agents | Admin | — | — |
 | `[✅]` | APT-73 | Allow multi-team agent assignment (UI only; schema already supports it) | Admin | Angelique | 29-May |
 | `[✅]` | APT-74 | Separate role and team into dropdowns | Admin | Angelique | 29-May |
 | `[✅]` | APT-78 | Hide inactive agents from dashboards | Agent Perf / Team | Angelique | 29-May |
 | `[✅]` | APT-79 | Add an active/inactive filter | Agent Perf / Team | Angelique | 29-May |
 | `[✅]` | APT-82 | Add year and month dropdowns to attendance | Attendance | Angelique | 29-May |
-| `[✓]` | APT-85 | Fix bulk apply to selected agents — cell click now toggles date selection when agents are checked; added "Clear Selected Cells" bulk button; hint shown when no dates selected yet | Attendance | Chad | 1-Jun |
 | `[✅]` | APT-86 | Hide inactive agents from attendance | Attendance | Angelique | 29-May |
 | `[✅]` | APT-87 | Verify attendance saves across sessions | Attendance | Angelique | 29-May |
-| `[ ]` | APT-89 | Add a notes field to the agent view | Agent Perf | Chad | 1-Jun |
 | `[✅]` | APT-91 | Auto-fill Created Date on notes (created_at already in DB) | Notes | Chad | 29-May |
 | `[✅]` | APT-97 | Add Reporting Supervisor dropdown to agent profile | Admin | Chad | — |
 | `[✅]` | APT-109 | Add Employment End Date to agent profile. Auto-sets agent inactive when date passes (checked on page load + on save). SQL: `ALTER TABLE metrics_agents ADD COLUMN IF NOT EXISTS employment_end_date date;` | Admin | Chad | — |
-| `[✓]` | APT-110 | Attendance Entry — fix bulk holiday application and apply-to-selected agents (umbrella for APT-84/APT-85); walkthrough video recorded 12-Jun | Attendance | Chad | 15-Jun |
-| `[✓]` | APT-114 | Fix error when saving notes ("Could not find the 'created_by' column") — graceful fallback deployed; full fix requires Supabase admin to run: `ALTER TABLE metrics_agent_monthly_notes ADD COLUMN IF NOT EXISTS created_by text;` | Notes | Chad | 15-Jun |
-| `[✓]` | APT-117 | Assistance filling in attendance for agents Jan–Apr 2026 — client's Excel tracker converted to a clean import file (1,180 entries, 18 agents); new **Import File** button on Attendance Entry bulk-loads CSV or Excel (.xlsx) with a confirmation step; exports on both attendance pages now produce Excel files. **11-Jul: Import/Export buttons REMOVED from both attendance pages on staging by client request (see APT-133) — this feature was never published to live.** | Attendance | — | 7-Jul |
 | `[✅]` | APT-120 | Attendance entries not reflecting on Agent Performance / Team Dashboard — Attendance % metric now reads live from the daily attendance records (same source as Attendance Summary); tested on staging and published to live 3-Jul | Agent Perf / Team | — | 3-Jul |
 | `[✅]` | APT-121 | Export CSV buttons on Attendance Entry (all day-by-day records: Agent, Date, Code) and Attendance Summary (all months: Agent, Team, Month, Scheduled, Available, %) — exports include ALL attendance data regardless of on-screen filters | Attendance | — | 3-Jul |
 | `[✅]` | APT-122 | Attendance Entry not saving for Jovana and Mindy — entries actually saved but the grid re-loaded through a view that drops agents without an active team assignment; grid and CSV export now read straight from the saved records | Attendance | — | 3-Jul |
@@ -97,13 +119,11 @@ _Started 21-Jul-2026. New tasks go here, numbered from APT-136._
 | `[✅]` | APT-125 | Attendance Entry % column rounds to the nearest whole number (.5 and up rounds up, below .5 rounds down) — was showing one decimal (client called this their APT-122) | Attendance | — | 7-Jul |
 | `[✅]` | APT-126 | Refreshing the browser on any page showed a 404 NOT_FOUND error — hosting now serves the app for every address so refresh and direct links work on all pages | All | — | 9-Jul |
 | `[✅]` | APT-127 | Each Help article now has its own web address (/help/article-name) — opening an article updates the URL, so copying and sharing the link takes the recipient straight to that article instead of the Help home page | Help | — | 9-Jul |
-| `[ ]` | APT-128 | Extend metric adjustments (APT-88) to the rollup views — Quarterly, Half-Year, YTD, and Trend tabs should honor per-agent custom goals and exclusions from each month (requires loading the whole year's adjustments, then applying them to the rollup and trend calculations) | Agent Perf | — | — |
 | `[✅]` | APT-129 | Display ALL metrics as whole numbers (.5 and up rounds up) — days and hours previously showed two decimals (6.16 days → 6 days, 1.46 hrs → 1 hr); applies across Agent Performance and Team Dashboard, all tabs | Agent Perf / Team | — | 9-Jul |
 | `[✅]` | APT-132 | YTD/Quarterly/Half-Year attendance % now day-weighted — total available days ÷ total scheduled days across the period, instead of equally averaging each recorded month's % (which let a 5-day month count as much as a 22-day month) | Agent Perf / Team | — | 11-Jul |
 | `[✅]` | APT-133 | Remove the Export and Import buttons from Attendance Entry and Attendance Summary — removed on staging 11-Jul per client request. NOTE: the live site still shows the older Export CSV buttons (APT-121) until this removal is published. | Attendance | — | 11-Jul |
 | `[✅]` | APT-134 | YTD/Quarterly/Half-Year attendance showed wrong % (e.g. Emily 100% instead of 92%) once a full year of history was imported — root cause: the year-range attendance query hit Supabase's 1000-row default limit and silently truncated, so most agents' later months were dropped. Now pages through all fact rows. Monthly was unaffected (under the limit). | Agent Perf / Team | — | 21-Jul |
 | `[✅]` | APT-135 | Agent Performance context strip — shows the selected agent's **Role**, **Assigned Team(s)**, and **Tenure** (e.g. "4 months in current role") above the rating cards, giving leadership context when judging performance. Role/hire date come from the agent profile; team from active team assignments. Tenure is calculated from **Hire Date** (the only start date the system stores) — if it should measure time in the *current role* specifically, a separate role-start date would need adding. | Agent Perf | — | 21-Jul |
-| `[B]` | APT-131 | Weekly performance trend on Agent Performance for the selected month — columns Week 1, Week 2, … (weeks run Monday–Sunday), each metric's weekly actual vs. goal with On/Off Track like Monthly (no tolerance column, no Adjust button); only weeks with real data show. Blocked/PARKED 10-Jul: client says weekly data now exists in the database, but we still need the exact table/view name + columns (and anon-key read access confirmed) from the data team before building. Build on staging first when unblocked. | Agent Perf | M | — | — | — |
 
 ### M — 3–8 hours each
 
@@ -116,26 +136,18 @@ _Started 21-Jul-2026. New tasks go here, numbered from APT-136._
 | `[✅]` | APT-48 | Add the time period toggle | Team Dashboard | — | — |
 | `[✅]` | APT-49 | Add a YTD summary view | Agent Perf / Team | Angelique | 29-May |
 | `[✅]` | APT-50 | Add a monthly trend breakdown | Agent Perf | Chad | 29-May |
-| `[ ]` | APT-64 | Add team-first selection with recalculation | Team Dashboard | — | — |
 | `[✅]` | APT-66 | Add a team leaderboard | Team Dashboard | Angelique | 29-May |
 | `[✅]` | APT-75 | Merge team assignments into the agent profile | Admin | Angelique | 29-May |
-| `[B]` | APT-83 | Add an All Months bulk option — Blocked: waiting for Angelique to clarify which section this applies to and what the bulk activity is | Attendance | Chad | 1-Jun |
-| `[✓]` | APT-84 | Allow bulk holiday application — holiday panel now has a code dropdown (no more hardcoded H/HOL); "Apply to selected" always visible (greyed when no agents checked); "Apply to all N agents" always available | Attendance | Chad | 1-Jun |
 
 ### L — 1–2 days each
 
 | Status | APT | Task | Area | Assignee | Due |
 |--------|-----|------|------|----------|-----|
-| `[ ]` | APT-58 | Add a simplified 1:1 mode | Agent Perf | — | — |
-| `[B]` | APT-63 | Bring back the trending data view — Blocked: waiting for client input on (1) how to define "maintaining" for % vs. absolute value metrics; (2) whether trend indicators compare to previous month or current month; (3) how to handle goals that change mid-period | Agent Perf | Chad | 1-Jun |
 
 ### XL — 2+ days each
 
 | Status | APT | Task | Area | Assignee | Due |
 |--------|-----|------|------|----------|-----|
-| `[B]` | APT-39 | Add AI performance summary to the 1:1 view — Blocked: waiting for Angelique to confirm final description; should highlight strengths, risks, and coaching suggestions; must adapt when supervisor notes explain an exception | Agent Perf | Chad | 1-Jun |
-| `[ ]` | APT-45 | Add AI performance summary to the 1:1 view | Team Dashboard | — | — |
-| `[B]` | APT-92 | Have the AI reference supervisor notes — Blocked: may overlap with APT-39/APT-63; waiting for Angelique to confirm if this is a separate deliverable or covered by those tasks | Notes | Chad | 1-Jun |
 
 ---
 
@@ -143,11 +155,7 @@ _Started 21-Jul-2026. New tasks go here, numbered from APT-136._
 
 | Status | APT | Task | Area | Difficulty | Schema Change | Assignee | Due |
 |--------|-----|------|------|------------|---------------|----------|-----|
-| `[ ]` | APT-90 | Add public/private toggle to notes | Notes | S | Add `is_private` bool to `metrics_agent_monthly_notes` | Chad | 1-Jun |
-| `[B]` | APT-130 | Mid-month starters should count for the whole month — agents whose Go-Live Date or team assignment Start Date falls on ANY day of a month should show that month's metrics (today the reports exclude the month unless the dates are on the 1st). Blocked: requires the Supabase admin to update the scorecard/summary/trend views to compare by month, not exact date — SQL request drafted 10-Jul and given to the client to forward. | Agent Perf / Team | S | Update `metrics_vw_ab_scorecard` / `_summary` / `_trends` view definitions (month-granular date comparison) | — | — |
-| `[✓]` | APT-91* | Auto-fill Created By (supervisor dropdown; no login system) | Notes | S | Add `created_by` to `metrics_agent_monthly_notes` | Chad | 29-May |
 | `[✅]` | APT-88 | Build the metric override feature — UNBLOCKED 8-Jul (client's APT-108 clarified: per-agent custom goals for new hires/PIP + exclude a metric like CSAT). Prototype built: **Adjust** button on each Agent Performance metric row → custom goal or exclude-from-score for that agent+month, with required reason + supervisor. Stored inside the existing monthly supervisor note (no schema change) per client direction. v1 scope: monthly view + that month's rating; rollups later if approach approved. 9-Jul: Notes admin page now shows two separate sections — "Supervisor Notes" (written notes only) and "Metric Adjustments" (agent, month, metric, change, reason, adjusted by) — so adjustments no longer clutter the notes and are easy to track. Tested and published to live 9-Jul. | Agent Perf | L | None — stored in existing notes table | Chad | 8-Jul |
-| `[✓]` | APT-81 | Show correct historical goal per month. Implemented via frontend overlay: `getActiveGoals()` queries goals filtered by date range; now supports day-level precision (not just month and year). No Supabase view change needed. | Goals | L | Frontend overlay — no schema change | Chad | TBD |
 | `[✅]` | APT-80 | Allow metrics to be toggled per team — implemented via active/inactive toggle on metric definitions and in the Goals section (no new table needed) | Admin | L | No new table needed | Chad | 1-Jun |
 | `[✅]` | APT-77 | Restructure goals to be role-based — role-based goals now live (e.g., CRM and CRM - PSA can have separate goal sets via existing team/group structure) | Goals | XL | Implemented via existing group structure | Chad | 1-Jun |
 
@@ -161,10 +169,6 @@ These tasks are about confirming data accuracy and signing off on the tool with 
 
 | Status | APT | Task | Assignee | Due |
 |--------|-----|------|----------|-----|
-| `[ ]` | APT-93 | Reconcile data v2 after fixes | Angelique | 1-Jun |
-| `[B]` | APT-94 | Verify tolerances match the Manager Guide — Blocked: dev team needs access to the Manager Guide Confluence page; Chad to grant access | Angelique | 1-Jun |
-| `[ ]` | APT-95 | Verify the rating calculation | Angelique | 1-Jun |
-| `[ ]` | APT-96 | Walk through the tool with supervisors | Angelique | 18-Jun |
 
 ---
 
