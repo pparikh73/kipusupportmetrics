@@ -654,27 +654,23 @@ export default function AgentPerformance() {
       {agentId && !loading && (
         <>
           {/* APT-135: Agent context — role, team, tenure */}
-          <div style={{
-            display: 'flex', flexWrap: 'wrap', gap: 28, alignItems: 'center',
-            padding: '10px 16px', marginBottom: 16,
-            background: '#f8f9fb', border: '1px solid #e2e6ea', borderRadius: 10,
-          }}>
-            <div>
-              <div className="stat-label">Role</div>
-              <div style={{ fontSize: 14, fontWeight: 600, color: '#1a1a2e' }}>
-                {selectedAgent?.role || '—'}
+          <div className="ctx-card">
+            <div className="ctx-item">
+              <div className="ctx-label">Role</div>
+              <div className={`ctx-value${selectedAgent?.role ? '' : ' ctx-empty'}`}>
+                {selectedAgent?.role || 'Not set'}
               </div>
             </div>
-            <div>
-              <div className="stat-label">Team</div>
-              <div style={{ fontSize: 14, fontWeight: 600, color: '#1a1a2e' }}>
-                {agentTeamNames.length ? agentTeamNames.join(', ') : '—'}
+            <div className="ctx-item">
+              <div className="ctx-label">Team</div>
+              <div className={`ctx-value${agentTeamNames.length ? '' : ' ctx-empty'}`}>
+                {agentTeamNames.length ? agentTeamNames.join(' · ') : 'No team assigned'}
               </div>
             </div>
-            <div>
-              <div className="stat-label">Tenure</div>
-              <div style={{ fontSize: 14, fontWeight: 600, color: '#1a1a2e' }}>
-                {agentTenure ?? <span style={{ fontWeight: 400, color: '#9ca3af' }}>Hire date not set</span>}
+            <div className="ctx-item">
+              <div className="ctx-label">Tenure</div>
+              <div className={`ctx-value${agentTenure ? '' : ' ctx-empty'}`}>
+                {agentTenure ?? 'Hire date not set'}
               </div>
             </div>
           </div>
