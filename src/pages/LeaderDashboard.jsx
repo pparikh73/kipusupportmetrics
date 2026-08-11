@@ -52,13 +52,16 @@ function computePeriodActual(rows, unitType) {
   return unitType === 'count' ? sum : sum / withData.length
 }
 
+// APT-136: compare on the same whole numbers shown on screen (see APT-129)
 function deriveStatus(actual, refRow) {
   if (actual == null || !refRow) return 'no_data'
   const { goal_value, tolerance_value, direction_good } = refRow
   if (goal_value == null) return 'no_target'
-  const tol = tolerance_value ?? 0
-  if (direction_good === 'at_or_above') return actual >= goal_value - tol ? 'on_track' : 'off_track'
-  if (direction_good === 'at_or_below') return actual <= goal_value + tol ? 'on_track' : 'off_track'
+  const a = Math.round(actual)
+  const goal = Math.round(goal_value)
+  const tol = Math.round(tolerance_value ?? 0)
+  if (direction_good === 'at_or_above') return a >= goal - tol ? 'on_track' : 'off_track'
+  if (direction_good === 'at_or_below') return a <= goal + tol ? 'on_track' : 'off_track'
   return 'no_target'
 }
 
