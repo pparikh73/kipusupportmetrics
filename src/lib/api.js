@@ -213,11 +213,14 @@ export async function deleteGroupGoal(id) {
 // Entry, so the attendance metric is patched below with live numbers from
 // metrics_vw_attendance_monthly — the same source the Attendance Summary uses.
 
+// APT-136: judge against the whole numbers shown on screen (see APT-129)
 function attendanceStatus(actual, row) {
   if (row.goal_value == null) return 'no_target'
-  const tol = row.tolerance_value ?? 0
-  if (row.direction_good === 'at_or_below') return actual <= row.goal_value + tol ? 'on_track' : 'off_track'
-  return actual >= row.goal_value - tol ? 'on_track' : 'off_track'
+  const a = Math.round(actual)
+  const goal = Math.round(row.goal_value)
+  const tol = Math.round(row.tolerance_value ?? 0)
+  if (row.direction_good === 'at_or_below') return a <= goal + tol ? 'on_track' : 'off_track'
+  return a >= goal - tol ? 'on_track' : 'off_track'
 }
 
 async function overlayAttendance(rows, { month, year, agentId, agentIds, groupId } = {}) {

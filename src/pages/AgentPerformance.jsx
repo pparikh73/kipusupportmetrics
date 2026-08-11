@@ -61,13 +61,17 @@ function computePeriodActual(rows, unitType) {
 }
 
 // Uses direction_good values: 'at_or_above' | 'at_or_below'
+// APT-136: values display as whole numbers (APT-129), so compare on the rounded
+// figures too — otherwise a raw 94.6 shows as "95% vs 95%" yet reads Off Track.
 function deriveStatus(actual, refRow) {
   if (actual == null || !refRow) return 'no_data'
   const { goal_value, tolerance_value, direction_good } = refRow
   if (goal_value == null) return 'no_target'
-  const tol = tolerance_value ?? 0
-  if (direction_good === 'at_or_above') return actual >= goal_value - tol ? 'on_track' : 'off_track'
-  if (direction_good === 'at_or_below') return actual <= goal_value + tol ? 'on_track' : 'off_track'
+  const a = Math.round(actual)
+  const goal = Math.round(goal_value)
+  const tol = Math.round(tolerance_value ?? 0)
+  if (direction_good === 'at_or_above') return a >= goal - tol ? 'on_track' : 'off_track'
+  if (direction_good === 'at_or_below') return a <= goal + tol ? 'on_track' : 'off_track'
   return 'no_target'
 }
 
@@ -175,7 +179,10 @@ function MetricRow({ row, onAdjust }) {
           </span>
         )}
       </td>
-      <td style={{ textAlign: 'right', fontWeight: hasActual ? 600 : 400, color: hasActual ? '#1a1a2e' : '#adb5bd' }}>
+      <td
+        style={{ textAlign: 'right', fontWeight: hasActual ? 600 : 400, color: hasActual ? '#1a1a2e' : '#adb5bd' }}
+        title={hasActual ? `Exact value: ${row.actual_value}` : undefined}
+      >
         {hasActual ? formatValue(row.actual_value, row.unit_type) : '—'}
       </td>
       <td style={{ textAlign: 'right', color: '#6b7a8d' }}>
