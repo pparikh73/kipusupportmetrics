@@ -3,10 +3,10 @@ import { Link } from 'react-router-dom'
 import {
   getTeams, getAgents, getAllAgents,
   getAllMetricDefinitions, getScorecard, getScorecardYear,
-  getSummary, getAgentMonthNote, upsertAgentMonthNote, getActiveGoals,
+  getAgentMonthNote, upsertAgentMonthNote, getActiveGoals,
   getAgentTeamAssignments,
 } from '../lib/api'
-import { formatValue, statusLabel, statusClass, ratingClass, computeRating } from '../lib/format'
+import { formatValue, statusLabel, statusClass, ratingClass, ratingIcon, computeRating } from '../lib/format'
 import Modal from '../components/Modal'
 import { parseNoteAdjustments, serializeNoteWithAdjustments } from '../lib/adjustments'
 
@@ -377,7 +377,6 @@ export default function AgentPerformance() {
   const [showInactive, setShowInactive] = useState(false)
 
   const [monthDetail, setMonthDetail] = useState([])
-  const [summary, setSummary]         = useState(null)
   const [yearDetail, setYearDetail]   = useState([])
   const [note, setNote]               = useState('')
   const [savedNote, setSavedNote]     = useState('')
@@ -448,13 +447,11 @@ export default function AgentPerformance() {
     setError('')
     Promise.all([
       getScorecard({ agentId: Number(agentId), month: monthKey }),
-      getSummary({ agentId: Number(agentId), month: monthKey }),
       getAgentMonthNote({ agentId: Number(agentId), noteMonth: monthKey }),
       teamId ? getActiveGoals({ groupId: teamId, month: monthKey }) : Promise.resolve([]),
     ])
-      .then(([sc, sumRows, noteRow, histGoals]) => {
+      .then(([sc, noteRow, histGoals]) => {
         setMonthDetail(applyHistoricalGoals(sc, histGoals))
-        setSummary(sumRows[0] ?? null)
         const { cleanNote, adjustments: adj } = parseNoteAdjustments(noteRow?.note_text ?? '')
         setNote(cleanNote)
         setSavedNote(cleanNote)
@@ -563,7 +560,10 @@ export default function AgentPerformance() {
   const agentTenure = formatTenure(selectedAgent?.hire_date)
 
   // APT-36: Compute rating from scorecard rows (counts_toward_score metrics with data + goal only)
-  const computedRating = useMemo(() => computeRating(allRows), [allRows])
+  const computedRating = useMemo(
+    () => computeRating(allRows, `${year}-${selMonth}`),
+    [allRows, year, selMonth]
+  )
   const ratingLabel   = computedRating.label
   const onTrackCount  = computedRating.onTrack
   const offTrackCount = computedRating.offTrack
@@ -686,8 +686,8 @@ export default function AgentPerformance() {
           <div className="cards-row">
             <div className="stat-card">
               <div className="stat-label">Overall Rating</div>
-              <div className={`stat-value ${ratingClass(summary?.rating_label)}`} style={{ fontSize: 18, marginTop: 4 }}>
-                {ratingLabel}
+              <div className={`stat-value ${ratingClass(ratingLabel)}`} style={{ fontSize: 18, marginTop: 4 }}>
+                {ratingIcon(ratingLabel)} {ratingLabel}
               </div>
             </div>
             <div className="stat-card">

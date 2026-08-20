@@ -320,10 +320,10 @@ export default function TeamDashboard() {
     const map = {}
     activeMonthAgents.forEach((agent) => {
       const rows = Object.values(detailByAgent[agent.id] ?? {})
-      map[agent.id] = computeRating(rows)
+      map[agent.id] = computeRating(rows, month)
     })
     return map
-  }, [activeMonthAgents, detailByAgent])
+  }, [activeMonthAgents, detailByAgent, month])
 
   const ratingDist = useMemo(() => {
     return Object.values(agentRatings).reduce((acc, r) => {
