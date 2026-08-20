@@ -71,7 +71,17 @@ export function ratingClass(ratingLabel) {
 // APT-36: Compute overall rating from an agent's scorecard rows for a given period.
 // Only counts metrics where counts_toward_score=true AND the metric has both actual data
 // and a goal (status = on_track or off_track). Metrics with no goal or no data are excluded.
-export function computeRating(rows) {
+// APT-137: the new rating bands apply from this month onward; earlier months
+// keep the original bands so historical reviews are not rewritten.
+export const NEW_RATING_BANDS_FROM = '2026-07'
+
+export function usesNewBands(periodMonth) {
+  if (!periodMonth) return true          // no month given → current rules
+  return String(periodMonth).slice(0, 7) >= NEW_RATING_BANDS_FROM
+}
+
+// periodMonth: 'YYYY-MM' (or 'YYYY-MM-DD') of the month being rated
+export function computeRating(rows, periodMonth) {
   const scored = rows.filter((r) =>
     !!r.counts_toward_score &&
     (r.metric_status === 'on_track' || r.metric_status === 'off_track')
@@ -80,15 +90,22 @@ export function computeRating(rows) {
   const onTrack = scored.filter((r) => r.metric_status === 'on_track').length
   const offTrack = scored.length - onTrack
   const pct = onTrack / scored.length
-  // APT-137: client rating bands, defined as points out of 9 and applied
-  // proportionally so they still work when fewer metrics are scored:
-  //   9/9 Exceeds · 6–8/9 Meets · 3–5/9 Needs Improvement · 0–2/9 Below
   const E = 1e-9
   let label
-  if (pct >= 1) label = 'Exceeds Expectations'
-  else if (pct >= 6 / 9 - E) label = 'Meets Expectations'
-  else if (pct >= 3 / 9 - E) label = 'Needs Improvement'
-  else label = 'Below Expectations'
+  if (usesNewBands(periodMonth)) {
+    // APT-137: client bands, defined as points out of 9 and applied
+    // proportionally so they hold when fewer metrics are scored:
+    //   9/9 Exceeds · 6–8/9 Meets · 3–5/9 Needs Improvement · 0–2/9 Below
+    if (pct >= 1) label = 'Exceeds Expectations'
+    else if (pct >= 6 / 9 - E) label = 'Meets Expectations'
+    else if (pct >= 3 / 9 - E) label = 'Needs Improvement'
+    else label = 'Below Expectations'
+  } else {
+    // Original bands, kept for months before the change took effect
+    if (pct >= 1) label = 'Meets Expectations'
+    else if (pct >= 0.75) label = 'Needs Improvement'
+    else label = 'Below Expectations'
+  }
   return { label, onTrack, offTrack, total: scored.length }
 }
 

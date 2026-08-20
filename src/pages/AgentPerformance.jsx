@@ -560,7 +560,10 @@ export default function AgentPerformance() {
   const agentTenure = formatTenure(selectedAgent?.hire_date)
 
   // APT-36: Compute rating from scorecard rows (counts_toward_score metrics with data + goal only)
-  const computedRating = useMemo(() => computeRating(allRows), [allRows])
+  const computedRating = useMemo(
+    () => computeRating(allRows, `${year}-${selMonth}`),
+    [allRows, year, selMonth]
+  )
   const ratingLabel   = computedRating.label
   const onTrackCount  = computedRating.onTrack
   const offTrackCount = computedRating.offTrack
