@@ -80,11 +80,27 @@ export function computeRating(rows) {
   const onTrack = scored.filter((r) => r.metric_status === 'on_track').length
   const offTrack = scored.length - onTrack
   const pct = onTrack / scored.length
+  // APT-137: client rating bands, defined as points out of 9 and applied
+  // proportionally so they still work when fewer metrics are scored:
+  //   9/9 Exceeds · 6–8/9 Meets · 3–5/9 Needs Improvement · 0–2/9 Below
+  const E = 1e-9
   let label
-  if (pct >= 1.0) label = 'Meets Expectations'
-  else if (pct >= 0.75) label = 'Needs Improvement'
+  if (pct >= 1) label = 'Exceeds Expectations'
+  else if (pct >= 6 / 9 - E) label = 'Meets Expectations'
+  else if (pct >= 3 / 9 - E) label = 'Needs Improvement'
   else label = 'Below Expectations'
   return { label, onTrack, offTrack, total: scored.length }
+}
+
+// APT-137: icon shown alongside the overall rating
+export function ratingIcon(ratingLabel) {
+  if (!ratingLabel) return ''
+  const lower = ratingLabel.toLowerCase()
+  if (lower.includes('exceeds')) return '⭐'
+  if (lower.includes('meets')) return '✓'
+  if (lower.includes('improvement')) return '⚠'
+  if (lower.includes('below')) return '✗'
+  return ''
 }
 
 // Returns YYYY-MM for current month
