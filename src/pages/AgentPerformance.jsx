@@ -536,14 +536,17 @@ export default function AgentPerformance() {
   // even if it is normally an "additional" (non-scored) metric.
   const allRows = useMemo(() => mergedRows.map((row) => {
     const adj = adjustments[row.metric_key]
-    if (!adj) return row
-    if (adj.exclude) return { ...row, metric_status: 'excluded', adjustment: adj }
-    const goal_value = adj.goal ?? row.goal_value
-    const tolerance_value = adj.tolerance ?? row.tolerance_value
-    const metric_status = row.actual_value != null
+    if (adj?.exclude) return { ...row, metric_status: 'excluded', adjustment: adj }
+    const goal_value = adj?.goal ?? row.goal_value
+    const tolerance_value = adj?.tolerance ?? row.tolerance_value
+    // APT-138: derive the status for EVERY row, not just adjusted ones. The
+    // database view decides on/off track from unrounded values (e.g. 54.6 vs a
+    // 55 goal), which contradicts the whole numbers we display (55% vs 55%).
+    const metric_status = (row.actual_value != null && goal_value != null)
       ? deriveStatus(row.actual_value, { goal_value, tolerance_value, direction_good: row.direction_good ?? 'at_or_above' })
       : row.metric_status
-    return { ...row, goal_value, tolerance_value, metric_status, adjustment: adj, counts_toward_score: true }
+    const base = { ...row, goal_value, tolerance_value, metric_status }
+    return adj ? { ...base, adjustment: adj, counts_toward_score: true } : base
   }), [mergedRows, adjustments])
 
   const selectedMonthLabel = MONTH_OPTIONS.find((m) => m.value === selMonth)?.label ?? selMonth

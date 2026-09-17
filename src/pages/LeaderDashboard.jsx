@@ -110,18 +110,20 @@ function buildMetricList(viewRows, fallbackDefs, inactiveKeys = new Set()) {
 
 // APT-81: Override goal/tolerance/status on scorecard rows with historically correct values
 function applyHistoricalGoals(rows, histGoals) {
-  if (!histGoals.length) return rows
   const goalMap = {}
   histGoals.forEach((g) => {
     const key = g.metrics_definitions?.metric_key
     if (key) goalMap[key] = { goal_value: g.goal_value, tolerance_value: g.tolerance_value }
   })
+  // APT-138: derive the status for every row, not only those with a historical
+  // goal — the database view judges on/off track from unrounded values, which
+  // contradicts the whole numbers shown (e.g. 55% vs a 55% goal reading Off Track).
   return rows.map((row) => {
     const g = goalMap[row.metric_key]
-    if (!g) return row
-    const { goal_value, tolerance_value } = g
-    const metric_status = row.actual_value != null
-      ? deriveStatus(row.actual_value, { goal_value, tolerance_value, direction_good: row.direction_good })
+    const goal_value = g ? g.goal_value : row.goal_value
+    const tolerance_value = g ? g.tolerance_value : row.tolerance_value
+    const metric_status = (row.actual_value != null && goal_value != null)
+      ? deriveStatus(row.actual_value, { goal_value, tolerance_value, direction_good: row.direction_good ?? 'at_or_above' })
       : row.metric_status
     return { ...row, goal_value, tolerance_value, metric_status }
   })
