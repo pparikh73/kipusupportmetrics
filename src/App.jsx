@@ -10,6 +10,7 @@ import AdminTeamAssignments from './pages/admin/AdminTeamAssignments'
 import AdminMetrics from './pages/admin/AdminMetrics'
 import AdminGoals from './pages/admin/AdminGoals'
 import AdminNotes from './pages/admin/AdminNotes'
+import AdminAttendanceCodes from './pages/admin/AdminAttendanceCodes'
 import Help from './pages/Help'
 
 export default function App() {
@@ -27,6 +28,7 @@ export default function App() {
           <Route path="/admin/metrics" element={<AdminMetrics />} />
           <Route path="/admin/goals" element={<AdminGoals />} />
           <Route path="/admin/notes" element={<AdminNotes />} />
+          <Route path="/admin/attendance-codes" element={<AdminAttendanceCodes />} />
           <Route path="/help" element={<Help />} />
           <Route path="/help/:articleId" element={<Help />} />
         </Routes>

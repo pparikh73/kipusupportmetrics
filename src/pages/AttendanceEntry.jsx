@@ -91,6 +91,7 @@ const CODE_COLORS = {
   O:   '#fbb6f0',  // Other — pink
   IT:  '#c8a4a5',  // Tech Issues — brown
   PD:  '#a6d5ec',  // Partial Day — blue
+  LOA: '#9fd8cb',  // Leave of Absence — teal
 }
 
 function codeColor(code) {

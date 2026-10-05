@@ -432,6 +432,26 @@ export async function getAttendanceCodes() {
   return data
 }
 
+// APT-139: every code including inactive ones, for the admin screen
+export async function getAllAttendanceCodes() {
+  const { data, error } = await supabase
+    .from('metrics_cfg_attendance_codes')
+    .select('*')
+    .order('display_order')
+  if (error) throw error
+  return data
+}
+
+export async function upsertAttendanceCode(row) {
+  const { data, error } = await supabase
+    .from('metrics_cfg_attendance_codes')
+    .upsert(row)
+    .select()
+    .single()
+  if (error) throw error
+  return data
+}
+
 export async function getAttendanceMonthly({ month, externalGroupId } = {}) {
   let query = supabase.from('metrics_vw_attendance_monthly').select('*')
   if (month)           query = query.eq('metric_month', toDateParam(month))
