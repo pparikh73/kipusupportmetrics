@@ -14,6 +14,7 @@ const NAV = [
     items: [
       { label: 'Attendance Summary', to: '/attendance' },
       { label: 'Attendance Entry', to: '/attendance/entry' },
+      { label: 'Attendance Codes', to: '/admin/attendance-codes' },
     ],
   },
   {
