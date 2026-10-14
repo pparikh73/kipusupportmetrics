@@ -44,7 +44,9 @@ built (APT-39/45/92, still blocked).
 ## 3. Architecture
 
 ```
-Zendesk / other sources  →  [UNKNOWN PROCESS]  →  Supabase  ←→  React app in browser  →  Vercel
+Zendesk / other sources  →  [UNKNOWN LOADER — outside Supabase, tool & owner unknown]
+                         →  Supabase (metrics_agent_monthly_raw)
+                         ←→  React app in browser  →  Vercel
 ```
 
 - Every screen calls a function in **`src/lib/api.js`**, which queries Supabase directly.
@@ -145,9 +147,15 @@ publish to `main` → mark `[✅]`. Counts as of this writing: **14 not started,
    level (VPN/SSO in front of Vercel) — **verify**.
 2. **Staging and live share a database.** "Test on staging" only isolates *code*, never
    data.
-3. **The Zendesk → database pipeline is undocumented and not in this repo.** ⚠️ Nobody has
-   documented who runs it, on what schedule, or how "% Solved in 1 Day" is defined. New
-   agents show blank metrics until someone adds them to that process.
+3. **The metric load is undocumented and runs outside this project.** Verified in Supabase
+   (14-Oct-2026): the load does **not** run inside Supabase — no pg_cron, no pg_net, no
+   Edge Functions, no database webhooks, and `metrics_import_log` is empty. Metrics land in
+   the table `metrics_agent_monthly_raw`, which this app never reads or writes. Verified
+   facts: the last load was **22 Sept 2026**; **nothing has loaded in October**; agents with
+   ids 37-42 (added after 22 Sept, incl. Hector Rivera, id 38) have **zero rows** in that
+   table, which is why their scorecards are blank. ⚠️ The tool and the owner are **unknown**.
+   The loader **likely matches agents by name — not confirmed.** Do not assume a fixed
+   schedule: observed load dates are irregular.
 4. **Database views can't be edited from the app.** APT-130 and APT-114 have been blocked
    for months waiting on a Supabase admin. The SQL is already drafted in the task notes.
 5. **The 1,000-row query cap.** Supabase returns max 1,000 rows per query by default. This
@@ -183,8 +191,8 @@ publish to `main` → mark `[✅]`. Counts as of this writing: **14 not started,
 
 ## 9. First-week checklist
 
-**Get access:** GitHub, Vercel, Supabase, and the Help site itself. Ask who owns the
-Zendesk data load.
+**Get access:** GitHub, Vercel, Supabase, and the Help site itself. Ask what tool runs the
+metric load and who owns it — neither is documented anywhere.
 
 **Read, in order:** `PROJECT_HISTORY.md` → `TASKS.md` (Phase 2 section) → `CLAUDE.md` →
 `src/lib/api.js`.
@@ -193,7 +201,7 @@ Zendesk data load.
 
 1. Is there any access control in front of the live site? (Gotcha #1)
 2. Is row-level security enabled in Supabase? (Section 6)
-3. Who produces the monthly metrics, and how does a new agent get added to it? (Gotcha #3)
+3. What tool runs the metric load, who owns it, and how does a new agent get included? (Gotcha #3)
 
 **Test the main flows on staging:** open an agent's scorecard across
 Monthly/Quarterly/YTD/Trend; enter and save attendance; add a metric adjustment via the
@@ -212,6 +220,7 @@ they're quick wins.
 Two things could not be determined from the codebase and should not be assumed:
 
 - **Whether anything restricts access to the live site** (Gotcha #1)
-- **How the Zendesk-to-database pipeline works** (Gotcha #3)
+- **What tool runs the metric load, who owns it, and on what trigger** (Gotcha #3). Also
+  unconfirmed: that the loader matches agents by name.
 
 Everything else in this document was verified against the code on 2026-10-09.
