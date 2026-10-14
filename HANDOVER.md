@@ -153,9 +153,12 @@ publish to `main` → mark `[✅]`. Counts as of this writing: **14 not started,
    the table `metrics_agent_monthly_raw`, which this app never reads or writes. Verified
    facts: the last load was **22 Sept 2026**; **nothing has loaded in October**; agents with
    ids 37-42 (added after 22 Sept, incl. Hector Rivera, id 38) have **zero rows** in that
-   table, which is why their scorecards are blank. ⚠️ The tool and the owner are **unknown**.
-   The loader **likely matches agents by name — not confirmed.** Do not assume a fixed
-   schedule: observed load dates are irregular.
+   table, which is why their scorecards are blank. That table is keyed by **`agent_id`** (verified
+   from the `metrics_vw_agent_monthly` definition: `JOIN ... ON a.id = r.agent_id`). Note that
+   `zendesk_user_id`, `external_agent_key` and `email` **no longer exist** on `metrics_agents` —
+   they were removed in the 14-May-2026 migration (commit `eac5296`), so the app stores no external
+   identifier for an agent. ⚠️ **Unknown:** the tool, the owner, and **how the loader obtains an
+   agent's `agent_id`**. Do not assume a fixed schedule: observed load dates are irregular.
 4. **Database views can't be edited from the app.** APT-130 and APT-114 have been blocked
    for months waiting on a Supabase admin. The SQL is already drafted in the task notes.
 5. **The 1,000-row query cap.** Supabase returns max 1,000 rows per query by default. This
@@ -220,7 +223,7 @@ they're quick wins.
 Two things could not be determined from the codebase and should not be assumed:
 
 - **Whether anything restricts access to the live site** (Gotcha #1)
-- **What tool runs the metric load, who owns it, and on what trigger** (Gotcha #3). Also
-  unconfirmed: that the loader matches agents by name.
+- **What tool runs the metric load, who owns it, on what trigger, and how it obtains an
+  agent's `agent_id`** (Gotcha #3) — the app holds no external identifier to match on.
 
 Everything else in this document was verified against the code on 2026-10-09.
