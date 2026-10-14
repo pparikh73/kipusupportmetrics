@@ -147,18 +147,27 @@ publish to `main` → mark `[✅]`. Counts as of this writing: **14 not started,
    level (VPN/SSO in front of Vercel) — **verify**.
 2. **Staging and live share a database.** "Test on staging" only isolates *code*, never
    data.
-3. **The metric load is undocumented and runs outside this project.** Verified in Supabase
-   (14-Oct-2026): the load does **not** run inside Supabase — no pg_cron, no pg_net, no
-   Edge Functions, no database webhooks, and `metrics_import_log` is empty. Metrics land in
-   the table `metrics_agent_monthly_raw`, which this app never reads or writes. Verified
-   facts: the last load was **22 Sept 2026**; **nothing has loaded in October**; agents with
-   ids 37-42 (added after 22 Sept, incl. Hector Rivera, id 38) have **zero rows** in that
-   table, which is why their scorecards are blank. That table is keyed by **`agent_id`** (verified
-   from the `metrics_vw_agent_monthly` definition: `JOIN ... ON a.id = r.agent_id`). Note that
-   `zendesk_user_id`, `external_agent_key` and `email` **no longer exist** on `metrics_agents` —
-   they were removed in the 14-May-2026 migration (commit `eac5296`), so the app stores no external
-   identifier for an agent. ⚠️ **Unknown:** the tool, the owner, and **how the loader obtains an
-   agent's `agent_id`**. Do not assume a fixed schedule: observed load dates are irregular.
+3. **The metric load is undocumented, runs outside this project, and has stopped.**
+   Metrics land in `metrics_agent_monthly_raw`, a table this app never reads or writes.
+   Verified in Supabase (14-Oct-2026):
+   - Loads ran on the **1st-3rd of each month from June to September**, at about
+     **13:15-13:40 UTC**, plus **single-agent loads on 19 and 22 Sept**.
+     **Nothing has loaded since 22-Sept-2026.**
+   - Agents added on **23-Jun, 6-Aug and 11-Aug each had their first data the next day** —
+     a new agent has historically been picked up within a day, so agents are not skipped.
+   - **All active agents added before 9-Oct have data**; agents 37-42 (added 9-14 Oct,
+     incl. Hector Rivera id 38) have none. Their blank scorecards reflect the load having
+     stopped, not an exclusion.
+   - The loader does **not** run inside Supabase: no pg_cron, no pg_net, no Edge Functions,
+     no database webhooks, and `metrics_import_log` is empty. There is also **no scheduled
+     Claude Routine on this account, no MCP connector and no cron job** in this project.
+   - The table is keyed by **`agent_id`** (`metrics_vw_agent_monthly`:
+     `JOIN ... ON a.id = r.agent_id`). `zendesk_user_id`, `external_agent_key` and `email`
+     no longer exist on `metrics_agents` — removed in the 14-May-2026 migration (commit
+     `eac5296`) — so the app stores no external identifier for an agent.
+
+   ⚠️ **Unknown:** which tool performs the load, who owns it, and how it obtains `agent_id`.
+   **Start by asking Chad** (owner of the `chad` branch) how the load was set up.
 4. **Database views can't be edited from the app.** APT-130 and APT-114 have been blocked
    for months waiting on a Supabase admin. The SQL is already drafted in the task notes.
 5. **The 1,000-row query cap.** Supabase returns max 1,000 rows per query by default. This
@@ -224,6 +233,7 @@ Two things could not be determined from the codebase and should not be assumed:
 
 - **Whether anything restricts access to the live site** (Gotcha #1)
 - **What tool runs the metric load, who owns it, on what trigger, and how it obtains an
-  agent's `agent_id`** (Gotcha #3) — the app holds no external identifier to match on.
+  agent's `agent_id`** (Gotcha #3) — the app holds no external identifier to match on,
+  and nothing has loaded since 22-Sept-2026. Chad may know how it was set up.
 
 Everything else in this document was verified against the code on 2026-10-09.
