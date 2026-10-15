@@ -509,7 +509,7 @@ export const ARTICLES = [
         headers: ['Field', 'What it means'],
         rows: [
           ['Agent Name', 'The person\'s name as it appears throughout the tool.'],
-          ['Role', 'Their role: Support Specialist, PSA, Team Lead, Supervisor, Manager, Trainer, or Other.'],
+          ['Role', 'Their role: Support Specialist, PSA, Client Advocate Tier I, Client Advocate Tier II, Team Lead, Supervisor, Manager, Trainer, or Other.'],
           ['Reporting Supervisor', 'Who this agent reports to. The list is drawn from people whose role is Supervisor.'],
           ['Hire Date', 'When the agent was hired.'],
           ['Go-Live Date', 'When the agent started taking live work (used so brand-new agents are not judged on ramp-up time).'],
