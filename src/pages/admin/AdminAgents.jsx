@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { getAllAgents, upsertAgent, autoDeactivateExpiredAgents, getAgentTeamAssignments, deleteTeamAssignment, getTeams, upsertTeamAssignment } from '../../lib/api'
 import Modal from '../../components/Modal'
+import { formatDateUS } from '../../lib/format'
 
 export default function AdminAgents() {
   const [allRows, setAllRows] = useState([])
@@ -134,9 +135,9 @@ export default function AdminAgents() {
               <tr>
                 <th>Agent Name</th>
                 <th>Role</th>
-                <th>Hire Date</th>
-                <th>Go-Live Date</th>
-                <th>End Date</th>
+                <th>Hire Date <span style={{ fontWeight: 400, color: '#9ca3af' }}>(MM/DD/YYYY)</span></th>
+                <th>Go-Live Date <span style={{ fontWeight: 400, color: '#9ca3af' }}>(MM/DD/YYYY)</span></th>
+                <th>End Date <span style={{ fontWeight: 400, color: '#9ca3af' }}>(MM/DD/YYYY)</span></th>
                 <th>Active</th>
                 <th>Notes</th>
                 <th></th>
@@ -147,9 +148,9 @@ export default function AdminAgents() {
                 <tr key={r.id}>
                   <td style={{ fontWeight: 500 }}>{r.agent_name}</td>
                   <td style={{ fontSize: 12, color: '#6b7a8d' }}>{r.role ?? '—'}</td>
-                  <td style={{ fontSize: 12 }}>{r.hire_date ?? '—'}</td>
-                  <td style={{ fontSize: 12 }}>{r.go_live_date ?? '—'}</td>
-                  <td style={{ fontSize: 12, color: r.employment_end_date ? '#842029' : '#9ca3af' }}>{r.employment_end_date ?? '—'}</td>
+                  <td style={{ fontSize: 12 }}>{formatDateUS(r.hire_date)}</td>
+                  <td style={{ fontSize: 12 }}>{formatDateUS(r.go_live_date)}</td>
+                  <td style={{ fontSize: 12, color: r.employment_end_date ? '#842029' : '#9ca3af' }}>{formatDateUS(r.employment_end_date)}</td>
                   <td><span style={{ color: r.active ? '#1a6e3a' : '#842029', fontWeight: 600, fontSize: 12 }}>{r.active ? 'Yes' : 'No'}</span></td>
                   <td style={{ fontSize: 12, color: '#6b7a8d', maxWidth: 200 }}>{r.notes ?? '—'}</td>
                   <td><button className="btn btn-sm btn-secondary" onClick={() => setEditing({ ...r })}>Edit</button></td>
@@ -214,28 +215,31 @@ export default function AdminAgents() {
           </div>
           <div className="form-row">
             <div className="form-group">
-              <label className="form-label">Hire Date</label>
+              <label className="form-label">Hire Date <span style={{ fontWeight: 400, color: '#9ca3af' }}>(MM/DD/YYYY)</span></label>
               <input
                 className="form-input"
                 type="date"
+                lang="en-US"
                 value={editing.hire_date ?? ''}
                 onChange={(e) => setEditing({ ...editing, hire_date: e.target.value || null })}
               />
             </div>
             <div className="form-group">
-              <label className="form-label">Go-Live Date</label>
+              <label className="form-label">Go-Live Date <span style={{ fontWeight: 400, color: '#9ca3af' }}>(MM/DD/YYYY)</span></label>
               <input
                 className="form-input"
                 type="date"
+                lang="en-US"
                 value={editing.go_live_date ?? ''}
                 onChange={(e) => setEditing({ ...editing, go_live_date: e.target.value || null })}
               />
             </div>
             <div className="form-group">
-              <label className="form-label">Employment End Date</label>
+              <label className="form-label">Employment End Date <span style={{ fontWeight: 400, color: '#9ca3af' }}>(MM/DD/YYYY)</span></label>
               <input
                 className="form-input"
                 type="date"
+                lang="en-US"
                 value={editing.employment_end_date ?? ''}
                 onChange={(e) => setEditing({ ...editing, employment_end_date: e.target.value || null })}
               />
@@ -267,7 +271,7 @@ export default function AdminAgents() {
                   <thead>
                     <tr>
                       <th style={{ textAlign: 'left', padding: '3px 6px', color: '#6b7a8d', fontWeight: 600 }}>Team</th>
-                      <th style={{ textAlign: 'left', padding: '3px 6px', color: '#6b7a8d', fontWeight: 600 }}>From</th>
+                      <th style={{ textAlign: 'left', padding: '3px 6px', color: '#6b7a8d', fontWeight: 600 }}>From (MM/DD/YYYY)</th>
                       <th style={{ padding: '3px 6px' }}></th>
                     </tr>
                   </thead>
@@ -275,7 +279,7 @@ export default function AdminAgents() {
                     {agentAssignments.map((a) => (
                       <tr key={a.id}>
                         <td style={{ padding: '3px 6px' }}>{a.metrics_groups?.group_name ?? '—'}</td>
-                        <td style={{ padding: '3px 6px', color: '#6b7a8d' }}>{a.effective_start_month ?? '—'}</td>
+                        <td style={{ padding: '3px 6px', color: '#6b7a8d' }}>{formatDateUS(a.effective_start_month)}</td>
                         <td style={{ padding: '3px 6px' }}>
                           <button
                             className="btn btn-danger btn-sm"
@@ -301,10 +305,11 @@ export default function AdminAgents() {
                   </select>
                 </div>
                 <div className="form-group" style={{ flex: 1, minWidth: 130, marginBottom: 0 }}>
-                  <label className="form-label">Effective From</label>
+                  <label className="form-label">Effective From <span style={{ fontWeight: 400, color: '#9ca3af' }}>(MM/DD/YYYY)</span></label>
                   <input
                     className="form-input"
                     type="date"
+                    lang="en-US"
                     value={newAssignMonth}
                     onChange={(e) => setNewAssignMonth(e.target.value)}
                   />
