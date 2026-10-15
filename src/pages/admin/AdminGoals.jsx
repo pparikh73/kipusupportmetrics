@@ -1,13 +1,27 @@
 import { useState, useEffect, useMemo } from 'react'
-import { getAllGroupGoals, upsertGroupGoal, deleteGroupGoal, getAllTeams, getAllMetricDefinitions } from '../../lib/api'
+import {
+  getAllGroupGoals, upsertGroupGoal, deleteGroupGoal, endGroupGoal,
+  getAllTeams, getAllMetricDefinitions,
+} from '../../lib/api'
 import Modal from '../../components/Modal'
 import DateInput from '../../components/DateInput'
 import { formatDateUS } from '../../lib/format'
+import { shiftDay, runsOn, overlaps } from '../../lib/goalPlan'
 
-function loadPref(key, fallback) {
-  try { const v = localStorage.getItem(key); return v !== null ? v : fallback } catch { return fallback }
+// APT-145: the Goals page is one grid — metrics down the side, teams across the
+// top — showing the goal each team is running today. Clicking a value opens the
+// same Add/Edit Goal form the page has always used.
+
+function todayISO() {
+  const d = new Date()
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
-function savePref(key, val) { try { localStorage.setItem(key, String(val)) } catch {} }
+
+function goalText(value, unitType) {
+  if (value === null || value === undefined) return '—'
+  const n = Number(value)
+  return unitType === 'percent' ? `${n}%` : String(n)
+}
 
 export default function AdminGoals() {
   const [goals, setGoals]     = useState([])
@@ -17,24 +31,10 @@ export default function AdminGoals() {
   const [error, setError]     = useState('')
   const [editing, setEditing] = useState(null)
   const [saving, setSaving]   = useState(false)
+  const [picking, setPicking] = useState(null)   // which of several clashing goals to open
+  const [notice, setNotice]   = useState('')
 
-  const [teamFilter, setTeamFilter] = useState(() => loadPref('ktp_goals_team', ''))
-  const [showHistory, setShowHistory] = useState(() => loadPref('ktp_goals_history', 'false') === 'true')
-  const [showInactive, setShowInactive] = useState(() => loadPref('ktp_goals_inactive', 'false') === 'true')
-  const [rangeFrom, setRangeFrom] = useState(() => loadPref('ktp_goals_from', ''))
-  const [rangeTo, setRangeTo]     = useState(() => loadPref('ktp_goals_to', ''))
-
-  useEffect(() => savePref('ktp_goals_team', teamFilter), [teamFilter])
-  useEffect(() => savePref('ktp_goals_history', showHistory), [showHistory])
-  useEffect(() => savePref('ktp_goals_inactive', showInactive), [showInactive])
-  useEffect(() => savePref('ktp_goals_from', rangeFrom), [rangeFrom])
-  useEffect(() => savePref('ktp_goals_to', rangeTo), [rangeTo])
-
-  // Today's date string — used to identify expired goals
-  const todayStr = useMemo(() => {
-    const d = new Date()
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-  }, [])
+  const today = useMemo(() => todayISO(), [])
 
   const load = () => {
     setLoading(true)
@@ -46,6 +46,57 @@ export default function AdminGoals() {
 
   useEffect(() => { load() }, [])
 
+  // A message left behind by the Teams page after copying goals to a new team
+  useEffect(() => {
+    try {
+      const msg = localStorage.getItem('ktp_goals_notice')
+      if (msg) { setNotice(msg); localStorage.removeItem('ktp_goals_notice') }
+    } catch { /* storage unavailable — no notice, nothing else affected */ }
+  }, [])
+
+  const activeMetrics = useMemo(() => metrics.filter((m) => m.active), [metrics])
+
+  // Teams with has_goals turned off are hidden. The column is optional: until a
+  // Supabase admin adds it, every active team is shown.
+  const teamCols = useMemo(
+    () => teams.filter((t) => t.active && t.has_goals !== false),
+    [teams],
+  )
+
+  // goals running today, keyed metric:team — more than one means a clash
+  const grid = useMemo(() => {
+    const map = {}
+    goals.filter((g) => runsOn(g, today)).forEach((g) => {
+      const key = `${g.metric_id}:${g.group_id}`
+      if (!map[key]) map[key] = []
+      map[key].push(g)
+    })
+    return map
+  }, [goals, today])
+
+  const clashCount = useMemo(
+    () => Object.values(grid).filter((list) => list.length > 1).length,
+    [grid],
+  )
+
+  const openGoal = (goal) => setEditing({ ...goal, metrics_groups: undefined, metrics_definitions: undefined })
+
+  const openCell = (metric, team) => {
+    const list = grid[`${metric.id}:${team.id}`] ?? []
+    if (list.length > 1) { setPicking({ metric, team, list }); return }
+    if (list.length === 1) { openGoal(list[0]); return }
+    // No goal yet — same form, with this team and metric already chosen
+    setEditing({
+      group_id: team.id,
+      metric_id: metric.id,
+      goal_value: '',
+      tolerance_value: '',
+      effective_start_month: '',
+      effective_end_month: '',
+      active: true,
+    })
+  }
+
   const save = async () => {
     setSaving(true)
     try {
@@ -56,6 +107,42 @@ export default function AdminGoals() {
       payload.tolerance_value = payload.tolerance_value !== '' ? Number(payload.tolerance_value) : null
       if (!payload.effective_start_month) payload.effective_start_month = null
       if (!payload.effective_end_month) payload.effective_end_month = null
+
+      // Saving a goal that covers the same dates as one already running is what
+      // leaves a team with two goals for one metric and reports unable to
+      // choose between them. Offer to close the old one rather than let it
+      // happen quietly — but it stays the user's call.
+      if (payload.active) {
+        const clashing = goals.filter((g) =>
+          g.id !== payload.id &&
+          g.active &&
+          Number(g.group_id) === payload.group_id &&
+          Number(g.metric_id) === payload.metric_id &&
+          overlaps(g, payload),
+        )
+        const closeable = payload.effective_start_month
+          ? clashing.filter((g) => (g.effective_start_month ?? '') < payload.effective_start_month)
+          : []
+
+        if (closeable.length && closeable.length === clashing.length) {
+          const teamName = teams.find((t) => t.id === payload.group_id)?.group_name ?? 'This team'
+          const metricName = metrics.find((m) => m.id === payload.metric_id)?.metric_name ?? 'this metric'
+          const endDate = shiftDay(payload.effective_start_month, -1)
+          const ok = window.confirm(
+            `${teamName} already has a goal running for ${metricName}.\n\n` +
+            `End it on ${formatDateUS(endDate)} so this new goal takes over?\n\n` +
+            `OK — the old goal ends the day before this one starts. Past reports are not changed.\n` +
+            `Cancel — both goals are kept, and reports will not know which to use.`,
+          )
+          if (ok) for (const g of closeable) await endGroupGoal(g.id, endDate)
+        } else if (clashing.length) {
+          window.alert(
+            `Heads up: this team will have ${clashing.length + 1} goals running for this metric at the same time, ` +
+            `and reports cannot tell which to use.\n\nThe Goals page will flag it with a ⚠ so you can sort it out.`,
+          )
+        }
+      }
+
       await upsertGroupGoal(payload)
       setEditing(null)
       load()
@@ -77,153 +164,119 @@ export default function AdminGoals() {
     }
   }
 
-  const activeMetrics = metrics.filter((m) => m.active)
-
-  const displayGoals = goals
-    .filter((g) => !teamFilter || String(g.group_id) === teamFilter)
-    .filter((g) => {
-      // Hide inactive goals unless "Show inactive" is on
-      if (!showInactive && !g.active) return false
-
-      const start = g.effective_start_month  // YYYY-MM-DD or null
-      const end   = g.effective_end_month    // YYYY-MM-DD or null
-
-      if (rangeFrom || rangeTo) {
-        if (rangeFrom && end && end < rangeFrom) return false
-        if (rangeTo && start && start > rangeTo) return false
-      }
-
-      // Without "show expired": hide active goals that ended before today
-      if (!showHistory && g.active && end && end < todayStr) return false
-
-      return true
-    })
-
-  // Group goals by team, then sort within each team:
-  // primary = metric name (groups duplicates together), secondary = no-end-date first, tertiary = newest start first
-  const goalsByTeam = useMemo(() => {
-    const map = {}
-    displayGoals.forEach((g) => {
-      const teamName = g.metrics_groups?.group_name ?? `Team ${g.group_id}`
-      if (!map[teamName]) map[teamName] = []
-      map[teamName].push(g)
-    })
-    Object.values(map).forEach((list) => {
-      list.sort((a, b) => {
-        const nameA = a.metrics_definitions?.metric_name ?? ''
-        const nameB = b.metrics_definitions?.metric_name ?? ''
-        if (nameA !== nameB) return nameA.localeCompare(nameB)
-        // Same metric: no end date (still active) first
-        if (!a.effective_end_month && b.effective_end_month) return -1
-        if (a.effective_end_month && !b.effective_end_month) return 1
-        // Both have (or don't have) end dates: newest start month first
-        return (b.effective_start_month ?? '').localeCompare(a.effective_start_month ?? '')
-      })
-    })
-    return map
-  }, [displayGoals])
-
   return (
     <div className="page">
-      <div className="page-header">
-        <h1 className="page-title">Goals</h1>
-        <p className="page-subtitle">Set metric goals and tolerances per team</p>
+      <div className="page-header" style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
+        <div style={{ flex: 1 }}>
+          <h1 className="page-title">Goals</h1>
+          <p className="page-subtitle">Goals active today. Click any value to edit it, or a dash to add one.</p>
+        </div>
+        <button className="btn btn-primary" onClick={() => setEditing({
+          group_id: '', metric_id: '', goal_value: '', tolerance_value: '',
+          effective_start_month: '', effective_end_month: '', active: true,
+        })}>+ Add Goal</button>
       </div>
 
       {error && <div className="error-msg">{error}</div>}
 
-      <div className="filter-bar" style={{ marginBottom: 12 }}>
-        <div className="filter-group">
-          <label className="filter-label">Team</label>
-          <select className="filter-select" value={teamFilter} onChange={(e) => setTeamFilter(e.target.value)}>
-            <option value="">All Teams</option>
-            {teams.map((t) => <option key={t.id} value={t.id}>{t.group_name}</option>)}
-          </select>
+      {notice && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, background: '#eef4ff', border: '1px solid #c7d9f7', borderRadius: 6, padding: '10px 14px', fontSize: 13, marginBottom: 12 }}>
+          <span style={{ flex: 1 }}>{notice}</span>
+          <button className="btn btn-sm btn-secondary" onClick={() => setNotice('')}>Dismiss</button>
         </div>
-        <div className="filter-group">
-          <label className="filter-label">From Date <span style={{ fontWeight: 400, textTransform: 'none' }}>(MM/DD/YYYY)</span></label>
-          <DateInput
-            className="filter-select"
-            style={{ minWidth: 150 }}
-            value={rangeFrom}
-            onChange={(v) => setRangeFrom(v ?? '')}
-          />
+      )}
+
+      {clashCount > 0 && (
+        <div style={{ background: '#fff4e5', border: '1px solid #f3cf9a', borderRadius: 6, padding: '10px 14px', fontSize: 13, marginBottom: 12 }}>
+          <strong>{clashCount} goal{clashCount === 1 ? '' : 's'} need attention.</strong>{' '}
+          A team has more than one goal running for the same metric, so reports cannot tell which to use.
+          Click the ⚠ cells below to sort them out.
         </div>
-        <div className="filter-group">
-          <label className="filter-label">To Date <span style={{ fontWeight: 400, textTransform: 'none' }}>(MM/DD/YYYY)</span></label>
-          <DateInput
-            className="filter-select"
-            style={{ minWidth: 150 }}
-            value={rangeTo}
-            onChange={(v) => setRangeTo(v ?? '')}
-          />
-        </div>
-        <div className="filter-group" style={{ justifyContent: 'flex-end', gap: 14 }}>
-          <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, cursor: 'pointer', color: '#6b7a8d', paddingTop: 18 }}>
-            <input type="checkbox" checked={showHistory} onChange={(e) => setShowHistory(e.target.checked)} />
-            Show expired
-          </label>
-          <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, cursor: 'pointer', color: '#6b7a8d', paddingTop: 18 }}>
-            <input type="checkbox" checked={showInactive} onChange={(e) => setShowInactive(e.target.checked)} />
-            Show inactive
-          </label>
-        </div>
-        <div style={{ marginLeft: 'auto' }}>
-          <button className="btn btn-primary" onClick={() => setEditing({
-            group_id: teamFilter || '',
-            metric_id: '',
-            goal_value: '',
-            tolerance_value: '',
-            effective_start_month: '',
-            effective_end_month: '',
-            active: true,
-          })}>+ Add Goal</button>
-        </div>
-      </div>
+      )}
 
       {loading ? <div className="loading">Loading...</div> : (
-        Object.keys(goalsByTeam).length === 0 ? (
+        teamCols.length === 0 || activeMetrics.length === 0 ? (
           <div className="empty-state">
-            <h3>No goals found</h3>
-            <p>Add a goal to configure metric targets for a team.</p>
+            <h3>Nothing to show yet</h3>
+            <p>Goals appear once there is at least one active team and one active metric.</p>
           </div>
         ) : (
-          Object.entries(goalsByTeam).map(([teamName, teamGoals]) => (
-            <div key={teamName}>
-              <div className="section-title">{teamName}</div>
-              <div className="table-wrap">
-                <table>
-                  <thead>
-                    <tr>
-                      <th>Metric</th>
-                      <th>Unit</th>
-                      <th>Goal Value</th>
-                      <th>Tolerance</th>
-                      <th>Start Date <span style={{ fontWeight: 400, color: '#9ca3af' }}>(MM/DD/YYYY)</span></th>
-                      <th>End Date <span style={{ fontWeight: 400, color: '#9ca3af' }}>(MM/DD/YYYY)</span></th>
-                      <th>Active</th>
-                      <th></th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {teamGoals.map((r) => (
-                      <tr key={r.id}>
-                        <td style={{ fontWeight: 500 }}>{r.metrics_definitions?.metric_name ?? r.metric_id}</td>
-                        <td style={{ fontSize: 12, color: '#6b7a8d' }}>{r.metrics_definitions?.unit_type ?? '—'}</td>
-                        <td>{r.goal_value ?? '—'}</td>
-                        <td>{r.tolerance_value != null ? `±${r.tolerance_value}` : '—'}</td>
-                        <td style={{ fontSize: 12 }}>{formatDateUS(r.effective_start_month)}</td>
-                        <td style={{ fontSize: 12 }}>{formatDateUS(r.effective_end_month)}</td>
-                        <td><span style={{ color: r.active ? '#1a6e3a' : '#842029', fontWeight: 600, fontSize: 12 }}>{r.active ? 'Yes' : 'No'}</span></td>
-                        <td><button className="btn btn-sm btn-secondary" onClick={() => setEditing({ ...r, metrics_groups: undefined, metrics_definitions: undefined })}>Edit</button></td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          ))
+          <div className="table-wrap" style={{ overflowX: 'auto' }}>
+            <table style={{ minWidth: 640 }}>
+              <thead>
+                <tr>
+                  <th style={{ position: 'sticky', left: 0, background: '#f7f8fa', zIndex: 2, minWidth: 210 }}>Metric</th>
+                  {teamCols.map((t) => (
+                    <th key={t.id} style={{ textAlign: 'center', whiteSpace: 'nowrap' }}>{t.group_name}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {activeMetrics.map((m) => (
+                  <tr key={m.id}>
+                    <td style={{ position: 'sticky', left: 0, background: '#fff', zIndex: 1, fontWeight: 500 }}>
+                      {m.metric_name}
+                    </td>
+                    {teamCols.map((t) => {
+                      const list = grid[`${m.id}:${t.id}`] ?? []
+                      const g = list[0]
+                      const clash = list.length > 1
+                      return (
+                        <td key={t.id} style={{ textAlign: 'center', padding: 0 }}>
+                          <button
+                            onClick={() => openCell(m, t)}
+                            title={
+                              clash ? `${list.length} goals are running for this metric — click to sort out`
+                                : g ? `Goal ${goalText(g.goal_value, m.unit_type)}${g.tolerance_value ? ` ±${g.tolerance_value}` : ''}, running since ${formatDateUS(g.effective_start_month)}`
+                                : `No goal — click to add one for ${t.group_name}`
+                            }
+                            style={{
+                              width: '100%', padding: '9px 6px', border: 'none', background: 'transparent',
+                              cursor: 'pointer', font: 'inherit',
+                              fontWeight: g ? 500 : 400,
+                              color: clash ? '#9a6400' : g ? '#1a1a2e' : '#c3c9d2',
+                            }}
+                          >
+                            {clash && <span style={{ marginRight: 4 }}>⚠</span>}
+                            {g ? goalText(g.goal_value, m.unit_type) : '—'}
+                          </button>
+                        </td>
+                      )
+                    })}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )
+      )}
+
+      {/* Which of several clashing goals to open */}
+      {picking && (
+        <Modal
+          title={`${picking.metric.metric_name} — ${picking.team.group_name}`}
+          onClose={() => setPicking(null)}
+          footer={<button className="btn btn-secondary" onClick={() => setPicking(null)}>Cancel</button>}
+        >
+          <div style={{ background: '#fff4e5', border: '1px solid #f3cf9a', borderRadius: 6, padding: '10px 12px', fontSize: 12.5, marginBottom: 14 }}>
+            <strong>This team has {picking.list.length} goals running for this metric at the same time.</strong>
+            <div style={{ marginTop: 4 }}>
+              Reports use the first one. Open the ones that should not be running and either set an
+              <strong> End Date</strong> or untick <strong>Active</strong>.
+            </div>
+          </div>
+          {picking.list.map((g, i) => (
+            <div key={g.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 0', borderBottom: '1px solid #f0f2f5' }}>
+              <span style={{ fontWeight: 600, minWidth: 60 }}>{goalText(g.goal_value, picking.metric.unit_type)}</span>
+              <span style={{ flex: 1, fontSize: 12, color: '#6b7a8d' }}>
+                from {formatDateUS(g.effective_start_month)}
+                {g.effective_end_month ? ` to ${formatDateUS(g.effective_end_month)}` : ''}
+                {i === 0 && <strong style={{ color: '#9a6400' }}> · used by reports</strong>}
+              </span>
+              <button className="btn btn-sm btn-secondary" onClick={() => { setPicking(null); openGoal(g) }}>Edit</button>
+            </div>
+          ))}
+        </Modal>
       )}
 
       {editing && (

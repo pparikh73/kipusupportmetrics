@@ -19,10 +19,13 @@ export async function getTeams() {
   return data
 }
 
+// APT-145: selects every column rather than a fixed list, so optional columns
+// (e.g. has_goals) come through when they exist and are simply absent when they
+// do not — asking for a column that does not exist would error.
 export async function getAllTeams() {
   const { data, error } = await supabase
     .from('metrics_groups')
-    .select('id, group_type, group_key, group_name, active, display_order')
+    .select('*')
     .eq('group_type', 'team')
     .order('display_order')
   if (error) throw error
@@ -205,6 +208,47 @@ export async function deleteGroupGoal(id) {
     .delete()
     .eq('id', id)
   if (error) throw error
+}
+
+// ── APT-145: goals as a team × metric grid ────────────────────────────────────
+
+export async function endGroupGoal(id, endDate) {
+  const { error } = await supabase
+    .from('metrics_group_goals')
+    .update({ effective_end_month: endDate })
+    .eq('id', id)
+  if (error) throw error
+}
+
+// Gives a new team the same goals another team is running today, so a team can
+// be set up in one step instead of a goal at a time.
+export async function copyGoalsToTeam({ fromTeamId, toTeamId, startDate }) {
+  const { data, error } = await supabase
+    .from('metrics_group_goals')
+    .select('metric_id, goal_value, tolerance_value, effective_start_month, effective_end_month, active')
+    .eq('group_id', Number(fromTeamId))
+    .eq('active', true)
+  if (error) throw error
+
+  const live = (data ?? []).filter((g) =>
+    (!g.effective_start_month || g.effective_start_month <= startDate) &&
+    (!g.effective_end_month || g.effective_end_month >= startDate)
+  )
+  if (!live.length) return 0
+
+  const { error: insertError } = await supabase
+    .from('metrics_group_goals')
+    .insert(live.map((g) => ({
+      group_id: Number(toTeamId),
+      metric_id: g.metric_id,
+      goal_value: g.goal_value,
+      tolerance_value: g.tolerance_value,
+      effective_start_month: startDate,
+      effective_end_month: null,
+      active: true,
+    })))
+  if (insertError) throw insertError
+  return live.length
 }
 
 // ── Dashboard views ───────────────────────────────────────────────────────────
