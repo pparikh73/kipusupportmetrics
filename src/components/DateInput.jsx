@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 
 // APT-143: the browser's built-in date box shows whatever order the computer's
 // region setting uses (dd/mm/yyyy on a UK or India machine) and that cannot be
@@ -47,7 +47,11 @@ export default function DateInput({ value, onChange, className = 'form-input', s
   const [text, setText] = useState(() => isoToUS(value))
 
   // Follow the saved value when the form is reloaded or switched to another record
-  useEffect(() => { setText(isoToUS(value)) }, [value])
+  const [lastValue, setLastValue] = useState(value)
+  if (value !== lastValue) {
+    setLastValue(value)
+    setText(isoToUS(value))
+  }
 
   const handleType = (raw) => {
     const next = maskTyping(raw)
@@ -66,7 +70,7 @@ export default function DateInput({ value, onChange, className = 'form-input', s
   }
 
   const openCalendar = (e) => {
-    try { e.currentTarget.showPicker() } catch (_) { /* older browser — its own icon still opens it */ }
+    try { e.currentTarget.showPicker() } catch { /* older browser — its own icon still opens it */ }
   }
 
   return (

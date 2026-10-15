@@ -1,12 +1,8 @@
 import { useState, useEffect } from 'react'
 import { getAllTeamAssignments, upsertTeamAssignment, getAllAgents, getAllTeams } from '../../lib/api'
 import Modal from '../../components/Modal'
-
-// Older assignments were saved as YYYY-MM; pad to a full date so the picker can show them
-function toDateValue(v) {
-  if (!v) return ''
-  return v.length === 7 ? `${v}-01` : v.slice(0, 10)
-}
+import DateInput from '../../components/DateInput'
+import { formatDateUS } from '../../lib/format'
 
 export default function AdminTeamAssignments() {
   const [rows, setRows]       = useState([])
@@ -92,8 +88,8 @@ export default function AdminTeamAssignments() {
               <tr>
                 <th>Agent</th>
                 <th>Team</th>
-                <th>Start Month</th>
-                <th>End Month</th>
+                <th>Start Date <span style={{ fontWeight: 400, color: '#9ca3af' }}>(MM/DD/YYYY)</span></th>
+                <th>End Date <span style={{ fontWeight: 400, color: '#9ca3af' }}>(MM/DD/YYYY)</span></th>
                 <th>Active</th>
                 <th></th>
               </tr>
@@ -103,8 +99,8 @@ export default function AdminTeamAssignments() {
                 <tr key={r.id}>
                   <td style={{ fontWeight: 500 }}>{r.metrics_agents?.agent_name ?? r.agent_id}</td>
                   <td>{r.metrics_groups?.group_name ?? r.group_id}</td>
-                  <td style={{ fontSize: 12 }}>{r.effective_start_month ?? '—'}</td>
-                  <td style={{ fontSize: 12 }}>{r.effective_end_month ?? '—'}</td>
+                  <td style={{ fontSize: 12 }}>{formatDateUS(r.effective_start_month)}</td>
+                  <td style={{ fontSize: 12 }}>{formatDateUS(r.effective_end_month)}</td>
                   <td><span style={{ color: r.active ? '#1a6e3a' : '#842029', fontWeight: 600, fontSize: 12 }}>{r.active ? 'Yes' : 'No'}</span></td>
                   <td><button className="btn btn-sm btn-secondary" onClick={() => setEditing({ ...r, metrics_agents: undefined, metrics_groups: undefined })}>Edit</button></td>
                 </tr>
@@ -146,12 +142,18 @@ export default function AdminTeamAssignments() {
           </div>
           <div className="form-row">
             <div className="form-group">
-              <label className="form-label">Start Date</label>
-              <input className="form-input" type="date" value={toDateValue(editing.effective_start_month)} onChange={(e) => setEditing({ ...editing, effective_start_month: e.target.value || null })} />
+              <label className="form-label">Start Date <span style={{ fontWeight: 400, color: '#9ca3af' }}>(MM/DD/YYYY)</span></label>
+              <DateInput
+                value={editing.effective_start_month}
+                onChange={(v) => setEditing({ ...editing, effective_start_month: v })}
+              />
             </div>
             <div className="form-group">
-              <label className="form-label">End Date <span style={{ fontWeight: 400, color: '#6b7a8d' }}>(leave blank if current)</span></label>
-              <input className="form-input" type="date" value={toDateValue(editing.effective_end_month)} onChange={(e) => setEditing({ ...editing, effective_end_month: e.target.value || null })} />
+              <label className="form-label">End Date <span style={{ fontWeight: 400, color: '#6b7a8d' }}>(MM/DD/YYYY — leave blank if current)</span></label>
+              <DateInput
+                value={editing.effective_end_month}
+                onChange={(v) => setEditing({ ...editing, effective_end_month: v })}
+              />
             </div>
           </div>
           <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, cursor: 'pointer', marginTop: 8 }}>
