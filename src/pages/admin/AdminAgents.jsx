@@ -194,6 +194,8 @@ export default function AdminAgents() {
               <option value="">— Select role —</option>
               <option value="Support Specialist">Support Specialist</option>
               <option value="PSA">PSA</option>
+              <option value="Client Advocate Tier I">Client Advocate Tier I</option>
+              <option value="Client Advocate Tier II">Client Advocate Tier II</option>
               <option value="Team Lead">Team Lead</option>
               <option value="Supervisor">Supervisor</option>
               <option value="Manager">Manager</option>
