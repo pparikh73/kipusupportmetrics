@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { getAllAgents, upsertAgent, autoDeactivateExpiredAgents, getAgentTeamAssignments, deleteTeamAssignment, getTeams, upsertTeamAssignment } from '../../lib/api'
 import Modal from '../../components/Modal'
+import DateInput from '../../components/DateInput'
 import { formatDateUS } from '../../lib/format'
 
 export default function AdminAgents() {
@@ -216,32 +217,23 @@ export default function AdminAgents() {
           <div className="form-row">
             <div className="form-group">
               <label className="form-label">Hire Date <span style={{ fontWeight: 400, color: '#9ca3af' }}>(MM/DD/YYYY)</span></label>
-              <input
-                className="form-input"
-                type="date"
-                lang="en-US"
-                value={editing.hire_date ?? ''}
-                onChange={(e) => setEditing({ ...editing, hire_date: e.target.value || null })}
+              <DateInput
+                value={editing.hire_date}
+                onChange={(v) => setEditing({ ...editing, hire_date: v })}
               />
             </div>
             <div className="form-group">
               <label className="form-label">Go-Live Date <span style={{ fontWeight: 400, color: '#9ca3af' }}>(MM/DD/YYYY)</span></label>
-              <input
-                className="form-input"
-                type="date"
-                lang="en-US"
-                value={editing.go_live_date ?? ''}
-                onChange={(e) => setEditing({ ...editing, go_live_date: e.target.value || null })}
+              <DateInput
+                value={editing.go_live_date}
+                onChange={(v) => setEditing({ ...editing, go_live_date: v })}
               />
             </div>
             <div className="form-group">
               <label className="form-label">Employment End Date <span style={{ fontWeight: 400, color: '#9ca3af' }}>(MM/DD/YYYY)</span></label>
-              <input
-                className="form-input"
-                type="date"
-                lang="en-US"
-                value={editing.employment_end_date ?? ''}
-                onChange={(e) => setEditing({ ...editing, employment_end_date: e.target.value || null })}
+              <DateInput
+                value={editing.employment_end_date}
+                onChange={(v) => setEditing({ ...editing, employment_end_date: v })}
               />
               <span style={{ fontSize: 11, color: '#9ca3af', marginTop: 2 }}>Auto-sets inactive when date passes</span>
             </div>
@@ -306,12 +298,9 @@ export default function AdminAgents() {
                 </div>
                 <div className="form-group" style={{ flex: 1, minWidth: 130, marginBottom: 0 }}>
                   <label className="form-label">Effective From <span style={{ fontWeight: 400, color: '#9ca3af' }}>(MM/DD/YYYY)</span></label>
-                  <input
-                    className="form-input"
-                    type="date"
-                    lang="en-US"
+                  <DateInput
                     value={newAssignMonth}
-                    onChange={(e) => setNewAssignMonth(e.target.value)}
+                    onChange={(v) => setNewAssignMonth(v ?? '')}
                   />
                 </div>
                 <button
