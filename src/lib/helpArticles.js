@@ -20,7 +20,7 @@ export const ARTICLES = [
     title: 'How to Use the Goals Section',
     category: 'Setup',
     summary:
-      'Set the target each team is measured against for every metric from one grid — apply a goal to many teams at once, set tolerances, change a goal from a date without disturbing past reports, and fix teams that have ended up with two goals for the same metric.',
+      'Set the target each team is measured against for every metric from one grid — add and edit goals, set tolerances, schedule goal changes with start and end dates, and fix teams that have ended up with two goals for the same metric.',
     blocks: [
       { type: 'h2', text: 'What a goal is, and why you set one' },
       {
@@ -57,42 +57,31 @@ export const ARTICLES = [
         ],
       },
 
-      { type: 'h2', text: 'Setting one goal for every team at once' },
-      {
-        type: 'p',
-        text:
-          'Most goals are the same across teams, so you set the goal **once** and choose which teams it applies to, rather than repeating yourself team by team.',
-      },
+      { type: 'h2', text: 'Adding a goal — step by step' },
       {
         type: 'steps',
         items: [
-          'Click the blue **+ Add Goal** button in the top-right of the Goals page.',
-          'Choose the **Metric**, then type the **Goal** and any **Tolerance**.',
-          'Set **Starts** — the day the goal takes effect. It defaults to today.',
-          'Every team starts ticked. **Untick any team this goal does not apply to.** Beside each team you will see what it is running now, so you can tell at a glance who is changing.',
-          'Click **Save**. Every ticked team gets the goal in one go.',
+          'Click the blue **+ Add Goal** button in the top-right of the Goals page, **or** click the dash in the grid where that team and metric cross — which fills in the Team and Metric for you.',
+          'Fill in each field in the pop-up (explained below).',
+          'Click **Save**. The goal appears in the grid straight away.',
         ],
       },
       { type: 'shot', id: 'HELP-002', caption: 'The + Add Goal button in the top-right corner.' },
-      { type: 'shot', id: 'HELP-003', caption: 'The Add Goal pop-up with the team checklist.' },
+      { type: 'shot', id: 'HELP-003', caption: 'The Add Goal pop-up with all of its fields.' },
 
       { type: 'h2', text: 'Every field explained' },
       {
         type: 'table',
         headers: ['Field', 'What it means'],
         rows: [
+          ['Team', 'Which team this goal applies to. Each team is set separately.'],
           ['Metric', 'Which metric this goal is for (e.g. CSAT %, Call Accept %). Only active metrics appear in this list.'],
-          ['Goal', 'The target number. For a percentage metric enter the number only (e.g. 96 for 96%). For a days metric enter the number of days (e.g. 5).'],
+          ['Goal Value', 'The target number. For a percentage metric enter the number only (e.g. 96 for 96%). For a days metric enter the number of days (e.g. 5).'],
           ['Tolerance (±)', 'Optional. How much wiggle room is allowed before a result is counted as Off Track. See "How tolerance works" below. Leave blank for no tolerance.'],
-          ['Starts', 'The first day this goal is in effect. Whatever each team is running now ends the day before, so there is never a gap or an overlap.'],
-          ['Teams', 'Who the goal applies to. All teams are ticked to begin with — untick the ones it does not fit.'],
+          ['Start Date', 'The first day this goal is in effect. Leave blank if it has always applied.'],
+          ['End Date', 'The last day this goal is in effect. Leave blank if the goal is still current (most goals).'],
+          ['Active', 'A simple on/off switch. Unchecking it hides the goal from scorecards without deleting it.'],
         ],
-      },
-      {
-        type: 'callout',
-        variant: 'info',
-        text:
-          'There is no End Date to fill in any more. A goal runs until you replace it, and setting the replacement ends the old one automatically.',
       },
 
       { type: 'h2', text: 'How tolerance works behind the scenes' },
@@ -136,7 +125,7 @@ export const ARTICLES = [
       {
         type: 'p',
         text:
-          'Example: CSAT was 94% from January, then raised to 96% starting 15 June. You simply add the 96% goal with a **Starts** date of 15 June. The tool ends the 94% goal on 14 June for you. Someone viewing a January–May scorecard still sees the 94% target they were judged against at the time; from mid-June onward they see 96%.',
+          'Example: CSAT was 94% from January, then raised to 96% starting 15 June. You add a new 96% goal with a **Start Date** of 15 June. When you save it, the tool spots that the 94% goal is still running and offers to end it on 14 June for you — say OK and the handover is done. Someone viewing a January–May scorecard still sees the 94% target they were judged against at the time; from mid-June onward they see 96%.',
       },
       {
         type: 'callout',
@@ -145,29 +134,28 @@ export const ARTICLES = [
           'Because performance is reviewed monthly, try to start goals on the 1st of a month when you can. Changing a goal in the middle of a month means that single month is judged against whichever goal overlapped it.',
       },
 
-      { type: 'h2', text: 'Changing one team only' },
+      { type: 'h2', text: 'Editing a goal that already exists' },
       {
         type: 'steps',
         items: [
-          'Click the value in that team’s column (or the dash, to add a goal where there is none).',
-          'Choose what you are doing — this matters, see the warning below.',
-          'Change the **Goal** or **Tolerance** and click **Save**.',
+          'Click the value in the grid where that metric and team cross.',
+          'Change any field and click **Save**.',
         ],
       },
       {
         type: 'callout',
         variant: 'warning',
         text:
-          'The pop-up asks whether you are **fixing a mistake** or **changing the goal from a date**. Fixing a mistake rewrites the goal as it stands, so past reports are re-judged against the corrected figure — right when the number was simply typed wrong. Changing it from a date leaves past reports exactly as they are. When in doubt, choose "changing it from a date".',
+          'Editing a goal changes it for **every month it has been running**, including months already reviewed. That is right when the figure was simply typed in wrong. If instead the target has genuinely moved, do not edit the old goal — give it an **End Date** and add a new one starting the next day, so past reports keep the target people were actually measured against.',
       },
-      { type: 'shot', id: 'HELP-006', caption: 'Clicking a value in the grid opens the goal for that one team.' },
+      { type: 'shot', id: 'HELP-006', caption: 'Clicking a value in the grid opens that team’s goal.' },
 
       { type: 'h2', text: 'Stopping vs. deleting a goal' },
       {
         type: 'list',
         items: [
-          '**Stop this goal** — ends it from today. It still counts for the months it was running, so past reports are untouched. This is almost always what you want.',
-          '**Delete** — removes the goal completely, including from past reports. It cannot be undone.',
+          '**Give it an End Date** (or untick **Active**) — the goal stops going forward but still counts for the months it was running, so past reports are untouched. This is almost always what you want.',
+          '**Delete Goal** — removes it completely, including from past reports. It cannot be undone.',
         ],
       },
 
@@ -175,15 +163,21 @@ export const ARTICLES = [
       {
         type: 'p',
         text:
-          'A ⚠ means that team has **more than one goal running for the same metric at the same time**, so reports have no way of knowing which target to use. This is the kind of thing that quietly makes a scorecard wrong.',
+          'A ⚠ means that team has **more than one goal running for the same metric at the same time**, so reports have no way of knowing which target to use. This is the kind of thing that quietly makes a scorecard wrong — it is exactly what went wrong on Billing.',
       },
       {
         type: 'steps',
         items: [
           'Click the ⚠ cell.',
-          'The pop-up lists every goal that is running and marks the one reports are currently using.',
-          'Click **Keep … and stop the rest**. The others are ended as of today, and past reports stay as they were.',
+          'A short list shows every goal that is running, and marks the one reports are currently using.',
+          'Click **Edit** on the one that should not be running, and either give it an **End Date** or untick **Active**. Past reports stay as they were.',
         ],
+      },
+      {
+        type: 'callout',
+        variant: 'info',
+        text:
+          'You are also warned before a clash is created: if you save a goal that covers the same dates as one already running, the tool offers to end the old one first.',
       },
 
       { type: 'h2', text: 'Setting up a brand-new team' },
@@ -953,9 +947,9 @@ export const ARTICLES = [
 export const HELP_SCREENSHOTS = [
   { id: 'HELP-001', article: 'How to Use the Goals Section', shows: 'The full Goals page', highlight: 'The whole grid — metrics down the side, teams across the top' },
   { id: 'HELP-002', article: 'How to Use the Goals Section', shows: 'Top-right of the Goals page', highlight: 'Point an arrow at the blue "+ Add Goal" button' },
-  { id: 'HELP-003', article: 'How to Use the Goals Section', shows: 'The Add Goal pop-up (open it, pick CSAT %)', highlight: 'Show the team checklist with the "now 96%" / "no goal" notes beside each team' },
+  { id: 'HELP-003', article: 'How to Use the Goals Section', shows: 'The Add Goal pop-up (open it)', highlight: 'All fields visible: Team, Metric, Goal Value, Tolerance, Start Date, End Date, Active' },
   { id: 'HELP-004', article: 'How to Use the Goals Section', shows: 'An agent or team scorecard row', highlight: 'Highlight the Goal, Tolerance and On Track/Off Track columns together' },
-  { id: 'HELP-006', article: 'How to Use the Goals Section', shows: 'The pop-up from clicking one value in the grid', highlight: 'Show the "Fixing a mistake" / "Changing it from a date" choice' },
+  { id: 'HELP-006', article: 'How to Use the Goals Section', shows: 'The Edit Goal pop-up on an existing goal', highlight: 'Point to the red "Delete Goal" button at bottom-left' },
   { id: 'HELP-007', article: 'How to Use the Metrics Section', shows: 'The full Metrics page', highlight: 'Show the Scored / Additional / Inactive section headings' },
   { id: 'HELP-008', article: 'How to Use the Metrics Section', shows: 'Top of the Metrics page', highlight: 'Point an arrow at the "+ Add Metric" button' },
   { id: 'HELP-009', article: 'How to Use the Metrics Section', shows: 'The Add Metric pop-up (open it)', highlight: 'All fields visible: Metric Name, Key, Unit Type, Direction Good, Display Order' },
