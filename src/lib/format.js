@@ -120,6 +120,16 @@ export function ratingIcon(ratingLabel) {
   return ''
 }
 
+// APT-143: dates display in U.S. order (MM/DD/YYYY). Stored values are ISO
+// (YYYY-MM-DD; some older team assignments were saved as YYYY-MM).
+export function formatDateUS(value) {
+  if (!value) return '—'
+  const m = String(value).slice(0, 10).match(/^(\d{4})-(\d{2})(?:-(\d{2}))?$/)
+  if (!m) return String(value)
+  const [, year, month, day] = m
+  return day ? `${month}/${day}/${year}` : `${month}/${year}`
+}
+
 // Returns YYYY-MM for current month
 export function currentMonth() {
   const d = new Date()

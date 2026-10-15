@@ -1,6 +1,8 @@
 import { useState, useEffect, useMemo } from 'react'
 import { getAllGroupGoals, upsertGroupGoal, deleteGroupGoal, getAllTeams, getAllMetricDefinitions } from '../../lib/api'
 import Modal from '../../components/Modal'
+import DateInput from '../../components/DateInput'
+import { formatDateUS } from '../../lib/format'
 
 function loadPref(key, fallback) {
   try { const v = localStorage.getItem(key); return v !== null ? v : fallback } catch { return fallback }
@@ -139,23 +141,21 @@ export default function AdminGoals() {
           </select>
         </div>
         <div className="filter-group">
-          <label className="filter-label">From Date</label>
-          <input
+          <label className="filter-label">From Date <span style={{ fontWeight: 400, textTransform: 'none' }}>(MM/DD/YYYY)</span></label>
+          <DateInput
             className="filter-select"
-            type="date"
             style={{ minWidth: 150 }}
             value={rangeFrom}
-            onChange={(e) => setRangeFrom(e.target.value)}
+            onChange={(v) => setRangeFrom(v ?? '')}
           />
         </div>
         <div className="filter-group">
-          <label className="filter-label">To Date</label>
-          <input
+          <label className="filter-label">To Date <span style={{ fontWeight: 400, textTransform: 'none' }}>(MM/DD/YYYY)</span></label>
+          <DateInput
             className="filter-select"
-            type="date"
             style={{ minWidth: 150 }}
             value={rangeTo}
-            onChange={(e) => setRangeTo(e.target.value)}
+            onChange={(v) => setRangeTo(v ?? '')}
           />
         </div>
         <div className="filter-group" style={{ justifyContent: 'flex-end', gap: 14 }}>
@@ -199,8 +199,8 @@ export default function AdminGoals() {
                       <th>Unit</th>
                       <th>Goal Value</th>
                       <th>Tolerance</th>
-                      <th>Start Date</th>
-                      <th>End Date</th>
+                      <th>Start Date <span style={{ fontWeight: 400, color: '#9ca3af' }}>(MM/DD/YYYY)</span></th>
+                      <th>End Date <span style={{ fontWeight: 400, color: '#9ca3af' }}>(MM/DD/YYYY)</span></th>
                       <th>Active</th>
                       <th></th>
                     </tr>
@@ -212,8 +212,8 @@ export default function AdminGoals() {
                         <td style={{ fontSize: 12, color: '#6b7a8d' }}>{r.metrics_definitions?.unit_type ?? '—'}</td>
                         <td>{r.goal_value ?? '—'}</td>
                         <td>{r.tolerance_value != null ? `±${r.tolerance_value}` : '—'}</td>
-                        <td style={{ fontSize: 12 }}>{r.effective_start_month ?? '—'}</td>
-                        <td style={{ fontSize: 12 }}>{r.effective_end_month ?? '—'}</td>
+                        <td style={{ fontSize: 12 }}>{formatDateUS(r.effective_start_month)}</td>
+                        <td style={{ fontSize: 12 }}>{formatDateUS(r.effective_end_month)}</td>
                         <td><span style={{ color: r.active ? '#1a6e3a' : '#842029', fontWeight: 600, fontSize: 12 }}>{r.active ? 'Yes' : 'No'}</span></td>
                         <td><button className="btn btn-sm btn-secondary" onClick={() => setEditing({ ...r, metrics_groups: undefined, metrics_definitions: undefined })}>Edit</button></td>
                       </tr>
@@ -270,21 +270,17 @@ export default function AdminGoals() {
           </div>
           <div className="form-row">
             <div className="form-group">
-              <label className="form-label">Start Date</label>
-              <input
-                className="form-input"
-                type="date"
-                value={editing.effective_start_month ?? ''}
-                onChange={(e) => setEditing({ ...editing, effective_start_month: e.target.value || null })}
+              <label className="form-label">Start Date <span style={{ fontWeight: 400, color: '#9ca3af' }}>(MM/DD/YYYY)</span></label>
+              <DateInput
+                value={editing.effective_start_month}
+                onChange={(v) => setEditing({ ...editing, effective_start_month: v })}
               />
             </div>
             <div className="form-group">
-              <label className="form-label">End Date <span style={{ fontSize: 11, color: '#9ca3af', fontWeight: 400 }}>(leave blank if still active)</span></label>
-              <input
-                className="form-input"
-                type="date"
-                value={editing.effective_end_month ?? ''}
-                onChange={(e) => setEditing({ ...editing, effective_end_month: e.target.value || null })}
+              <label className="form-label">End Date <span style={{ fontSize: 11, color: '#9ca3af', fontWeight: 400 }}>(MM/DD/YYYY — leave blank if still active)</span></label>
+              <DateInput
+                value={editing.effective_end_month}
+                onChange={(v) => setEditing({ ...editing, effective_end_month: v })}
               />
             </div>
           </div>
