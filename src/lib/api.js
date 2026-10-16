@@ -1,4 +1,5 @@
 import { supabase } from './supabase'
+import { planGoalChange } from './goalPlan'
 
 // Convert YYYY-MM → YYYY-MM-01 for date columns in Postgres
 function toDateParam(month) {
@@ -218,6 +219,45 @@ export async function endGroupGoal(id, endDate) {
     .update({ effective_end_month: endDate })
     .eq('id', id)
   if (error) throw error
+}
+
+// Sets one metric's goal for any number of teams at once.
+//
+// Reports read whichever goal was in force for the month being shown, so a
+// change must never overwrite the old figure — it ends the running goal the day
+// before the new one starts. That keeps past months reporting against the goal
+// that actually applied at the time, and is what stops a team ending up with
+// two goals for the same metric covering the same dates.
+//
+// `existing` is every goal row already loaded by the page.
+export async function applyGoalToTeams({ metricId, goalValue, toleranceValue, startDate, teamIds, existing }) {
+  const metric = Number(metricId)
+  const value = goalValue === '' || goalValue === null ? null : Number(goalValue)
+  const tolerance = toleranceValue === '' || toleranceValue === null ? null : Number(toleranceValue)
+
+  for (const teamId of teamIds.map(Number)) {
+    const mine = existing.filter(
+      (g) => Number(g.metric_id) === metric && Number(g.group_id) === teamId,
+    )
+    const { correct, toEnd, insertEnd } = planGoalChange(mine, startDate)
+
+    if (correct) {
+      await upsertGroupGoal({ ...correct, goal_value: value, tolerance_value: tolerance })
+      continue
+    }
+
+    for (const { id, endDate } of toEnd) await endGroupGoal(id, endDate)
+
+    await upsertGroupGoal({
+      group_id: teamId,
+      metric_id: metric,
+      goal_value: value,
+      tolerance_value: tolerance,
+      effective_start_month: startDate,
+      effective_end_month: insertEnd,
+      active: true,
+    })
+  }
 }
 
 // Gives a new team the same goals another team is running today, so a team can

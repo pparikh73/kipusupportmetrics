@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import {
   getAllGroupGoals, upsertGroupGoal, deleteGroupGoal, endGroupGoal,
-  getAllTeams, getAllMetricDefinitions,
+  applyGoalToTeams, getAllTeams, getAllMetricDefinitions,
 } from '../../lib/api'
 import Modal from '../../components/Modal'
 import DateInput from '../../components/DateInput'
@@ -32,6 +32,7 @@ export default function AdminGoals() {
   const [editing, setEditing] = useState(null)
   const [saving, setSaving]   = useState(false)
   const [picking, setPicking] = useState(null)   // which of several clashing goals to open
+  const [adding, setAdding]   = useState(null)   // the Add Goal panel
   const [notice, setNotice]   = useState('')
 
   const today = useMemo(() => todayISO(), [])
@@ -79,22 +80,48 @@ export default function AdminGoals() {
     [grid],
   )
 
+  const addingMetric = metrics.find((m) => String(m.id) === String(adding?.metric_id))
+
   const openGoal = (goal) => setEditing({ ...goal, metrics_groups: undefined, metrics_definitions: undefined })
+
+  // '+ Add Goal' starts with every team ticked; clicking a dash in the grid
+  // starts with only that team, so a single cell is never rolled out by accident
+  const openAdd = (metric, team) => setAdding({
+    metric_id: metric?.id ?? '',
+    goal_value: '',
+    tolerance_value: '',
+    start: today,
+    teamIds: team ? [team.id] : teamCols.map((t) => t.id),
+  })
 
   const openCell = (metric, team) => {
     const list = grid[`${metric.id}:${team.id}`] ?? []
     if (list.length > 1) { setPicking({ metric, team, list }); return }
     if (list.length === 1) { openGoal(list[0]); return }
-    // No goal yet — same form, with this team and metric already chosen
-    setEditing({
-      group_id: team.id,
-      metric_id: metric.id,
-      goal_value: '',
-      tolerance_value: '',
-      effective_start_month: '',
-      effective_end_month: '',
-      active: true,
-    })
+    openAdd(metric, team)
+  }
+
+  const saveAdd = async () => {
+    if (!adding.metric_id || !adding.teamIds.length) return
+    setSaving(true)
+    try {
+      await applyGoalToTeams({
+        metricId: adding.metric_id,
+        goalValue: adding.goal_value,
+        toleranceValue: adding.tolerance_value,
+        startDate: adding.start || today,
+        teamIds: adding.teamIds,
+        existing: goals,
+      })
+      const n = adding.teamIds.length
+      setNotice(`Goal applied to ${n} team${n === 1 ? '' : 's'}.`)
+      setAdding(null)
+      load()
+    } catch (e) {
+      setError(e.message)
+    } finally {
+      setSaving(false)
+    }
   }
 
   const save = async () => {
@@ -171,10 +198,7 @@ export default function AdminGoals() {
           <h1 className="page-title">Goals</h1>
           <p className="page-subtitle">Goals active today. Click any value to edit it, or a dash to add one.</p>
         </div>
-        <button className="btn btn-primary" onClick={() => setEditing({
-          group_id: '', metric_id: '', goal_value: '', tolerance_value: '',
-          effective_start_month: '', effective_end_month: '', active: true,
-        })}>+ Add Goal</button>
+        <button className="btn btn-primary" onClick={() => openAdd(null, null)}>+ Add Goal</button>
       </div>
 
       {error && <div className="error-msg">{error}</div>}
@@ -276,6 +300,108 @@ export default function AdminGoals() {
               <button className="btn btn-sm btn-secondary" onClick={() => { setPicking(null); openGoal(g) }}>Edit</button>
             </div>
           ))}
+        </Modal>
+      )}
+
+      {/* ── One goal, as many teams as it fits ─────────────────────────── */}
+      {adding && (
+        <Modal
+          title="Add Goal"
+          onClose={() => setAdding(null)}
+          footer={
+            <>
+              <button className="btn btn-secondary" onClick={() => setAdding(null)}>Cancel</button>
+              <button className="btn btn-primary" onClick={saveAdd} disabled={saving || !adding.metric_id || !adding.teamIds.length}>
+                {saving ? 'Saving…' : 'Save'}
+              </button>
+            </>
+          }
+        >
+          <div className="form-group" style={{ marginBottom: 12 }}>
+            <label className="form-label">Metric</label>
+            <select className="form-select" value={adding.metric_id} onChange={(e) => setAdding({ ...adding, metric_id: e.target.value })}>
+              <option value="">— Select Metric —</option>
+              {activeMetrics.map((m) => <option key={m.id} value={m.id}>{m.metric_name}</option>)}
+            </select>
+          </div>
+
+          <div className="form-row">
+            <div className="form-group">
+              <label className="form-label">Goal</label>
+              <div style={{ position: 'relative' }}>
+                <input
+                  className="form-input"
+                  type="number"
+                  step="any"
+                  value={adding.goal_value}
+                  onChange={(e) => setAdding({ ...adding, goal_value: e.target.value })}
+                  style={{ width: '100%', paddingRight: addingMetric?.unit_type === 'percent' ? 26 : undefined }}
+                />
+                {addingMetric?.unit_type === 'percent' && (
+                  <span style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', fontSize: 13, color: '#9ca3af', pointerEvents: 'none' }}>%</span>
+                )}
+              </div>
+            </div>
+            <div className="form-group">
+              <label className="form-label">Tolerance</label>
+              <input
+                className="form-input"
+                type="number"
+                step="any"
+                value={adding.tolerance_value}
+                onChange={(e) => setAdding({ ...adding, tolerance_value: e.target.value })}
+                placeholder="± 0"
+              />
+            </div>
+            <div className="form-group">
+              <label className="form-label">Starts <span style={{ fontWeight: 400, color: '#9ca3af' }}>(MM/DD/YYYY)</span></label>
+              <DateInput value={adding.start} onChange={(v) => setAdding({ ...adding, start: v ?? today })} />
+            </div>
+          </div>
+          <p style={{ fontSize: 12, color: '#6b7a8d', marginTop: -4, marginBottom: 14 }}>
+            Any current goal ends the day before. Past reports aren&apos;t changed.
+          </p>
+
+          <div className="form-group" style={{ marginBottom: 2 }}>
+            <label className="form-label" style={{ display: 'flex', alignItems: 'center' }}>
+              Teams
+              <button
+                className="btn btn-sm btn-secondary"
+                style={{ marginLeft: 'auto', fontWeight: 400 }}
+                onClick={() => setAdding({ ...adding, teamIds: adding.teamIds.length === teamCols.length ? [] : teamCols.map((t) => t.id) })}
+              >
+                {adding.teamIds.length === teamCols.length ? 'Uncheck all' : 'Check all'}
+              </button>
+            </label>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: '0 18px' }}>
+            {teamCols.map((t) => {
+              const live = adding.metric_id ? (grid[`${adding.metric_id}:${t.id}`] ?? [])[0] : null
+              return (
+                <label key={t.id} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, cursor: 'pointer', padding: '7px 0', borderBottom: '1px solid #f0f2f5' }}>
+                  <input
+                    type="checkbox"
+                    checked={adding.teamIds.some((id) => String(id) === String(t.id))}
+                    onChange={(e) => setAdding({
+                      ...adding,
+                      teamIds: e.target.checked
+                        ? [...adding.teamIds, t.id]
+                        : adding.teamIds.filter((id) => String(id) !== String(t.id)),
+                    })}
+                  />
+                  <span style={{ flex: 1 }}>{t.group_name}</span>
+                  <span style={{ fontSize: 11.5, color: '#9ca3af' }}>
+                    {!adding.metric_id ? '' : live ? `now ${goalText(live.goal_value, addingMetric?.unit_type)}` : 'no goal'}
+                  </span>
+                </label>
+              )
+            })}
+          </div>
+          <p style={{ fontSize: 12, color: '#6b7a8d', marginTop: 10, marginBottom: 0 }}>
+            {adding.teamIds.length === teamCols.length
+              ? 'All teams are checked. Uncheck any team this goal doesn’t apply to.'
+              : `${adding.teamIds.length} of ${teamCols.length} teams selected.`}
+          </p>
         </Modal>
       )}
 
