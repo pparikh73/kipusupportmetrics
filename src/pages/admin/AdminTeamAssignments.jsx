@@ -1,8 +1,16 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { getAllTeamAssignments, upsertTeamAssignment, getAllAgents, getAllTeams } from '../../lib/api'
 import Modal from '../../components/Modal'
 import DateInput from '../../components/DateInput'
 import { formatDateUS } from '../../lib/format'
+
+// APT-147: who an agent reports to lives on the agent record (supervisor_id),
+// not on the assignment, so it is looked up per row. 'none' keeps agents with
+// no supervisor set groupable rather than silently dropped.
+function supervisorKeyOf(row, agentsById) {
+  const sid = agentsById[row.agent_id]?.supervisor_id
+  return sid ? String(sid) : 'none'
+}
 
 export default function AdminTeamAssignments() {
   const [rows, setRows]       = useState([])
@@ -15,6 +23,7 @@ export default function AdminTeamAssignments() {
 
   const [agentFilter, setAgentFilter] = useState('')
   const [teamFilter, setTeamFilter]   = useState('')
+  const [supervisorFilter, setSupervisorFilter] = useState('')
 
   const load = () => {
     setLoading(true)
@@ -44,9 +53,45 @@ export default function AdminTeamAssignments() {
     }
   }
 
+  const agentsById = useMemo(() => {
+    const m = {}
+    agents.forEach((a) => { m[a.id] = a })
+    return m
+  }, [agents])
+
+  // The supervisor list follows the chosen team, so picking EMR offers only the
+  // supervisors who actually have someone on EMR.
+  const supervisorOptions = useMemo(() => {
+    const ids = new Set()
+    let anyUnset = false
+    rows
+      .filter((r) => !teamFilter || String(r.group_id) === teamFilter)
+      .forEach((r) => {
+        const key = supervisorKeyOf(r, agentsById)
+        if (key === 'none') anyUnset = true
+        else ids.add(key)
+      })
+    const list = [...ids]
+      .map((id) => agentsById[id])
+      .filter(Boolean)
+      .sort((a, b) => a.agent_name.localeCompare(b.agent_name))
+    return { list, anyUnset }
+  }, [rows, teamFilter, agentsById])
+
+  // Changing team can leave a supervisor selected who has nobody on that team
+  const changeTeam = (next) => {
+    setTeamFilter(next)
+    if (!supervisorFilter) return
+    const stillThere = rows.some(
+      (r) => (!next || String(r.group_id) === next) && supervisorKeyOf(r, agentsById) === supervisorFilter,
+    )
+    if (!stillThere) setSupervisorFilter('')
+  }
+
   const displayRows = rows.filter((r) => {
     if (agentFilter && String(r.agent_id) !== agentFilter) return false
     if (teamFilter  && String(r.group_id) !== teamFilter)  return false
+    if (supervisorFilter && supervisorKeyOf(r, agentsById) !== supervisorFilter) return false
     return true
   })
 
@@ -69,9 +114,22 @@ export default function AdminTeamAssignments() {
         </div>
         <div className="filter-group">
           <label className="filter-label">Team</label>
-          <select className="filter-select" value={teamFilter} onChange={(e) => setTeamFilter(e.target.value)}>
+          <select className="filter-select" value={teamFilter} onChange={(e) => changeTeam(e.target.value)}>
             <option value="">All Teams</option>
             {teams.map((t) => <option key={t.id} value={t.id}>{t.group_name}</option>)}
+          </select>
+        </div>
+        <div className="filter-group">
+          <label className="filter-label">Reporting Supervisor</label>
+          <select
+            className="filter-select"
+            style={{ minWidth: 170 }}
+            value={supervisorFilter}
+            onChange={(e) => setSupervisorFilter(e.target.value)}
+          >
+            <option value="">All Supervisors</option>
+            {supervisorOptions.list.map((s) => <option key={s.id} value={s.id}>{s.agent_name}</option>)}
+            {supervisorOptions.anyUnset && <option value="none">— No supervisor set —</option>}
           </select>
         </div>
         <div style={{ marginLeft: 'auto' }}>
@@ -87,6 +145,7 @@ export default function AdminTeamAssignments() {
             <thead>
               <tr>
                 <th>Agent</th>
+                <th>Reporting Supervisor</th>
                 <th>Team</th>
                 <th>Start Date <span style={{ fontWeight: 400, color: '#9ca3af' }}>(MM/DD/YYYY)</span></th>
                 <th>End Date <span style={{ fontWeight: 400, color: '#9ca3af' }}>(MM/DD/YYYY)</span></th>
@@ -98,6 +157,9 @@ export default function AdminTeamAssignments() {
               {displayRows.map((r) => (
                 <tr key={r.id}>
                   <td style={{ fontWeight: 500 }}>{r.metrics_agents?.agent_name ?? r.agent_id}</td>
+                  <td style={{ fontSize: 12, color: '#6b7a8d' }}>
+                    {agentsById[agentsById[r.agent_id]?.supervisor_id]?.agent_name ?? '—'}
+                  </td>
                   <td>{r.metrics_groups?.group_name ?? r.group_id}</td>
                   <td style={{ fontSize: 12 }}>{formatDateUS(r.effective_start_month)}</td>
                   <td style={{ fontSize: 12 }}>{formatDateUS(r.effective_end_month)}</td>
@@ -106,7 +168,7 @@ export default function AdminTeamAssignments() {
                 </tr>
               ))}
               {displayRows.length === 0 && (
-                <tr><td colSpan={6} style={{ textAlign: 'center', padding: 32, color: '#6b7a8d' }}>No assignments found.</td></tr>
+                <tr><td colSpan={7} style={{ textAlign: 'center', padding: 32, color: '#6b7a8d' }}>No assignments found.</td></tr>
               )}
             </tbody>
           </table>
